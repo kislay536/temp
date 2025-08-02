@@ -1,0 +1,53 @@
+Hello1
+Hello2
+Hello3
+Hello4
+Inside DPI Send
+Returning from DPI Send
+Inside DPI eval
+Returning from DPI eval
+Inside DPI eval
+Returning from DPI eval
+Inside DPI eval
+Returning from DPI eval
+Hello5
+Hello3
+Hello4
+Inside DPI Send
+Returning from DPI Send
+Inside DPI eval
+Returning from DPI eval
+Inside DPI eval
+Returning from DPI eval
+Hello5
+Mode 0 -> Result: 15
+Hello3
+Hello4
+Inside DPI Send
+Returning from DPI Send
+Inside DPI eval
+Returning from DPI eval
+Inside DPI eval
+Returning from DPI eval
+Hello5
+Mode 1 -> Result: 5
+Hello3
+Hello4
+Inside DPI Send
+Returning from DPI Send
+Inside DPI eval
+Returning from DPI eval
+Inside DPI eval
+Returning from DPI eval
+Hello5
+Mode 2 -> Result: 140725414758352
+Hello3
+Hello4
+Inside DPI Send
+Returning from DPI Send
+Inside DPI eval
+Returning from DPI eval
+Inside DPI eval
+Returning from DPI eval
+Hello5
+Mode 3 -> Result: 2
