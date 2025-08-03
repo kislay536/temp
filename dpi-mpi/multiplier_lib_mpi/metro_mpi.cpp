@@ -11,7 +11,7 @@ using namespace std;
 // MPI_Aint offsets_all_req[9];
 
 const int nitems_all_req = 2;
-int blocklengths_all_req[2] = {1,1};
+int blocklengths_all_req[2] = {1, 1};
 MPI_Datatype types_all_req[2] = {MPI_UNSIGNED_LONG_LONG, MPI_UNSIGNED_LONG_LONG};
 MPI_Datatype mpi_all_type_req;
 MPI_Aint offsets_all_req[2];
@@ -72,13 +72,14 @@ void mpi_send_request(mpi_struct_req message, int dest, int rank, int flag)
 {
     int message_len = 1;
     MPI_Request request;
-    
-    //MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
+
+    // MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
     MPI_Send(&message, message_len, mpi_all_type_req, dest, flag, MPI_COMM_WORLD);
 }
 
 mpi_struct_req mpi_receive_request(int origin, int flag)
 {
+    cout << "3. Received Request!!!" << endl;
     int message_len = 1;
     MPI_Status status;
     mpi_struct_req message;
@@ -92,8 +93,8 @@ void mpi_send_response(mpi_struct_resp message, int dest, int rank, int flag)
 {
     int message_len = 1;
     MPI_Request request;
-    
-    //MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
+
+    // MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
     MPI_Send(&message, message_len, mpi_all_type_resp, dest, flag, MPI_COMM_WORLD);
 }
 
@@ -122,8 +123,10 @@ int getSize()
     return size;
 }
 
-void finalize()
+void finalize(int a)
 {
+    if(a==0) cout<<"Ending Communication from Multiplier!!!"<<endl;
+    else if(a==1) cout<<"Ending Communication from Calculator!!!"<<endl;
     // cout << "[DPI CPP] Finalizing" << endl;
     MPI_Finalize();
 }

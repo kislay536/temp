@@ -6,36 +6,6 @@
 #include "Vcalculator__Syms.h"
 #include "Vcalculator___024root.h"
 
-extern "C" void dpi_multiplier_init();
-
-VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__dpi_multiplier_init_TOP() {
-    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__dpi_multiplier_init_TOP\n"); );
-    // Body
-    dpi_multiplier_init();
-}
-
-extern "C" void dpi_multiplier_send(unsigned long long a, unsigned long long b);
-
-VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__dpi_multiplier_send_TOP(QData/*63:0*/ a, QData/*63:0*/ b) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__dpi_multiplier_send_TOP\n"); );
-    // Body
-    unsigned long long a__Vcvt;
-    for (size_t a__Vidx = 0; a__Vidx < 1; ++a__Vidx) a__Vcvt = a;
-    unsigned long long b__Vcvt;
-    for (size_t b__Vidx = 0; b__Vidx < 1; ++b__Vidx) b__Vcvt = b;
-    dpi_multiplier_send(a__Vcvt, b__Vcvt);
-}
-
-extern "C" long long dpi_multiplier_eval();
-
-VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__dpi_multiplier_eval_TOP(QData/*63:0*/ &dpi_multiplier_eval__Vfuncrtn) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__dpi_multiplier_eval_TOP\n"); );
-    // Body
-    long long dpi_multiplier_eval__Vfuncrtn__Vcvt;
-    dpi_multiplier_eval__Vfuncrtn__Vcvt = dpi_multiplier_eval();
-    dpi_multiplier_eval__Vfuncrtn = dpi_multiplier_eval__Vfuncrtn__Vcvt;
-}
-
 extern "C" void dpi_multiplier(unsigned long long a, unsigned long long b, unsigned long long* result);
 
 VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_mul__DOT__dpi_multiplier_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result) {

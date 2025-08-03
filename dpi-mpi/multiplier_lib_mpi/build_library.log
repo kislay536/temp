@@ -7,7 +7,7 @@ MetroMPI 2. Going for process function: process() in verilator.cpp(verilate)
 metro_mpi() at 211 in verilator.cpp
 - V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-2-g9876d27ad (mod)
 - Verilator: Built from 0.064 MB sources in 6 modules, into 0.027 MB in 8 C++ files needing 0.000 MB
-- Verilator: Walltime 0.009 s (elab=0.000, cvt=0.002, bld=0.000); cpu 0.009 s on 1 threads; alloced 22.586 MB
+- Verilator: Walltime 0.008 s (elab=0.000, cvt=0.002, bld=0.000); cpu 0.008 s on 1 threads; alloced 22.582 MB
 == == ==  2. Making the library_for_lib_include...
 make -C obj_dir_mul -f Vmultiplier.mk
 make[2]: Entering directory '/home/riscv_sec/metro-mpi/temp/dpi-mpi/multiplier_lib_mpi/obj_dir_mul'
@@ -33,7 +33,7 @@ MetroMPI 2. Going for process function: process() in verilator.cpp(verilate)
 metro_mpi() at 211 in verilator.cpp
 - V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-2-g9876d27ad (mod)
 - Verilator: Built from 0.024 MB sources in 2 modules, into 0.025 MB in 7 C++ files needing 0.000 MB
-- Verilator: Walltime 0.006 s (elab=0.000, cvt=0.002, bld=0.000); cpu 0.006 s on 1 threads; alloced 22.582 MB
+- Verilator: Walltime 0.008 s (elab=0.000, cvt=0.003, bld=0.000); cpu 0.008 s on 1 threads; alloced 22.590 MB
 == == == 5. Making the library...
 make CXX=mpic++ LINK=mpic++ -C obj_dir_mul -f Vmultiplier.mk Vmultiplier
 make[2]: Entering directory '/home/riscv_sec/metro-mpi/temp/dpi-mpi/multiplier_lib_mpi/obj_dir_mul'

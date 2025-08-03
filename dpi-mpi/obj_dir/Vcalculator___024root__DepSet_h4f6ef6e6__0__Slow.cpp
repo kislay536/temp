@@ -11,10 +11,22 @@ VL_ATTR_COLD void Vcalculator___024root___eval_static(Vcalculator___024root* vlS
     auto& vlSelfRef = std::ref(*vlSelf).get();
 }
 
+VL_ATTR_COLD void Vcalculator___024root___eval_initial__TOP(Vcalculator___024root* vlSelf);
+
 VL_ATTR_COLD void Vcalculator___024root___eval_initial(Vcalculator___024root* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root___eval_initial\n"); );
     Vcalculator__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
+    // Body
+    Vcalculator___024root___eval_initial__TOP(vlSelf);
+}
+
+VL_ATTR_COLD void Vcalculator___024root___eval_initial__TOP(Vcalculator___024root* vlSelf) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root___eval_initial__TOP\n"); );
+    Vcalculator__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
+    auto& vlSelfRef = std::ref(*vlSelf).get();
+    // Body
+    VL_WRITEF_NX("*** == *** From RTL->Adder doing adder things\n*** == *** From RTL->Subtractor doing Subtractor things\n*** == *** From RTL->Multiplier doing Multiplier things\n*** == *** From RTL->Divider doing Divider things\n",0);
 }
 
 VL_ATTR_COLD void Vcalculator___024root___eval_final(Vcalculator___024root* vlSelf) {
