@@ -54,7 +54,4 @@ int main(){
         if(mpi_receive_finish() != 0) sim_end = true;
         mpi_req_serve();
     }
-
-
-
 }
