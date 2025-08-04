@@ -61,26 +61,29 @@ int main()
 
     while (!sim_end)
     {
+        int flag = 0;
+        int req_available = 0;
+        MPI_Status status;
 
-        // Check if a message is available on any source with tag 99 (for shutdown)
+        // Non-blocking check for shutdown message from rank 0
         // MPI_Iprobe( int source , int tag , MPI_Comm comm , int* flag , MPI_Status* status);
         MPI_Iprobe(0, 99, MPI_COMM_WORLD, &flag, &status);
-        // if(mpi_receive_finish() != 0) sim_end = true;  //potentially wrong; have to do something for this
 
         if (flag)
         {
             int dummy;
-            // MPI_Recv( void* buf , MPI_Count count , MPI_Datatype datatype , int source , int tag , MPI_Comm comm , MPI_Status* status);
             MPI_Recv(&dummy, 1, MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
             std::cout << "Shutdown signal received!" << std::endl;
             sim_end = true;
             break;
         }
 
-        cout << "==== ==== Waiting for Requests!!! ==== ====" << endl;
-        mpi_req_serve();
+        MPI_Iprobe(0, req_flag, MPI_COMM_WORLD, &req_available, &status);
+        // std::cout << "==== ==== Waiting for Requests!!! ==== ====" << std::endl;
+        if (req_available)
+            mpi_req_serve(); // serve other requests
     }
-    cout << "About to finalise from library!!!" << endl;
+    // cout << "About to finalise from library!!!" << endl;
     finalize(0);
     exit(0);
 }

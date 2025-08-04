@@ -61,11 +61,11 @@ unsigned short mpi_receive_finish()
     return message;
 }
 
-void mpi_send_finish(unsigned short message, int rank)
+void mpi_send_finish()
 {
-    int message_len = 1;
-
-    MPI_Bcast(&message, message_len, MPI_UNSIGNED_SHORT, rank, MPI_COMM_WORLD);
+    int dummy = 0;
+    // MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
+    MPI_Send(&dummy, 1, MPI_INT, 1, 99, MPI_COMM_WORLD);
 }
 
 void mpi_send_request(mpi_struct_req message, int dest, int rank, int flag)
@@ -79,11 +79,11 @@ void mpi_send_request(mpi_struct_req message, int dest, int rank, int flag)
 
 mpi_struct_req mpi_receive_request(int origin, int flag)
 {
-    cout << "3. Received Request!!!" << endl;
+    // cout << "3. Received Request!!!" << endl;
     int message_len = 1;
     MPI_Status status;
     mpi_struct_req message;
-
+    // MPI_Recv( void* buf , MPI_Count count , MPI_Datatype datatype , int source , int tag , MPI_Comm comm , MPI_Status* status);
     MPI_Recv(&message, message_len, mpi_all_type_req, origin, flag, MPI_COMM_WORLD, &status);
 
     return message;

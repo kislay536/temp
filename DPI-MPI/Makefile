@@ -6,7 +6,7 @@ CXX = mpic++
 CXXFLAGS = -O2 -Wall
 DPI_SOURCES = dpi_impl.cpp
 CXX_SOURCES = sim_main.cpp $(DPI_SOURCES)
-CXX_MPI_SOURCES = mpi-dpi-sim.cpp
+CXX_MPI_SOURCES = mpi-dpi-sim.cpp metro_mpi.cpp
 CXX_MPI_OBJECTS = mpi-dpi-sim.cpp
 
 # Rule to compile each .cpp into .o
@@ -17,9 +17,13 @@ CXX_MPI_OBJECTS = mpi-dpi-sim.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Path to your previously compiled Vmultiplier model
+MULTIPLIER_OBJ_DIR = 
+MULTIPLIER_LIB = 
+MULTIPLIER_HEADERS = 
+
 MULTIPLIER_OBJ_DIR = obj_dir_mul
-MULTIPLIER_LIB = ../$(MULTIPLIER_OBJ_DIR)/libVmultiplier.a
-MULTIPLIER_HEADERS = -I../$(MULTIPLIER_OBJ_DIR)
+# MULTIPLIER_LIB = ../$(MULTIPLIER_OBJ_DIR)/libVmultiplier.a
+# MULTIPLIER_HEADERS = -I../$(MULTIPLIER_OBJ_DIR)
 
 verilate: clean
 	@echo "Verilating design with top module '$(top_mod)'..."
@@ -66,7 +70,7 @@ elaborate_mpi:clean
 
 build_mpi:
 	@echo "== == == 2. Building the simulation binary..."
-	@make CXX=mpic++ LINK=mpic++ -C $(OBJ_DIR) -f $(TOP).mk $(TOP)
+	make CXX=mpic++ LINK=mpic++ -C $(OBJ_DIR) -f $(TOP).mk $(TOP)
 
 simulate_mpi:
 	@echo "== == == 3. Running simulation..."
@@ -76,3 +80,6 @@ clean:
 	@echo "Cleaning up..."
 	@rm -rf $(OBJ_DIR)
 	@clear
+
+hello:
+	g++ -o hello hello.cpp
