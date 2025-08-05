@@ -16,19 +16,6 @@ module calculator (
     // Instantiate arithmetic modules
     adder      u_add (.a(a), .b(b), .result(add_out));
     subtractor u_sub (.a(a), .b(b), .result(sub_out));
-    // initial begin
-    //     $display("Hello1");
-    //     dpi_multiplier_init();  // only once
-    //     $display("Hello2");
-    // end
-    // always @(*) begin
-    //     $display("Hello3");
-    //     $display("Hello4");
-    //     dpi_multiplier_send(a, b);
-    //     mul_out = dpi_multiplier_eval();
-    //     $display("Hello5");
-    //     // #500;
-    // end
     multiplier u_mul (.a(a), .b(b), .result(mul_out));
     divider    u_div (.a(a), .b(b), .result(div_out));
 
