@@ -17,24 +17,32 @@ void Vcalculator___024root___eval_ico(Vcalculator___024root* vlSelf) {
     }
 }
 
+void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_add__DOT__dpi_adder_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result);
+void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_sub__DOT__dpi_subtractor_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result);
 void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_mul__DOT__dpi_multiplier_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result);
+void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_div__DOT__dpi_divider_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result);
 
 VL_INLINE_OPT void Vcalculator___024root___ico_sequent__TOP__0(Vcalculator___024root* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root___ico_sequent__TOP__0\n"); );
     Vcalculator__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
-    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_mul__DOT__dpi_multiplier_TOP(vlSelfRef.a, vlSelfRef.b, vlSelfRef.__Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__0__result);
-    vlSelfRef.calculator__DOT__mul_out = vlSelfRef.__Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__0__result;
+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_add__DOT__dpi_adder_TOP(vlSelfRef.a, vlSelfRef.b, vlSelfRef.__Vtask_calculator__DOT__u_add__DOT__dpi_adder__0__result);
+    vlSelfRef.calculator__DOT__add_out = vlSelfRef.__Vtask_calculator__DOT__u_add__DOT__dpi_adder__0__result;
+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_sub__DOT__dpi_subtractor_TOP(vlSelfRef.a, vlSelfRef.b, vlSelfRef.__Vtask_calculator__DOT__u_sub__DOT__dpi_subtractor__1__result);
+    vlSelfRef.calculator__DOT__sub_out = vlSelfRef.__Vtask_calculator__DOT__u_sub__DOT__dpi_subtractor__1__result;
+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_mul__DOT__dpi_multiplier_TOP(vlSelfRef.a, vlSelfRef.b, vlSelfRef.__Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__2__result);
+    vlSelfRef.calculator__DOT__mul_out = vlSelfRef.__Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__2__result;
+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_div__DOT__dpi_divider_TOP(vlSelfRef.a, vlSelfRef.b, vlSelfRef.__Vtask_calculator__DOT__u_div__DOT__dpi_divider__3__result);
+    vlSelfRef.calculator__DOT__div_out = vlSelfRef.__Vtask_calculator__DOT__u_div__DOT__dpi_divider__3__result;
     vlSelfRef.result = ((0U == (IData)(vlSelfRef.mode))
-                         ? (vlSelfRef.a + vlSelfRef.b)
+                         ? vlSelfRef.calculator__DOT__add_out
                          : ((1U == (IData)(vlSelfRef.mode))
-                             ? (vlSelfRef.a - vlSelfRef.b)
+                             ? vlSelfRef.calculator__DOT__sub_out
                              : ((2U == (IData)(vlSelfRef.mode))
                                  ? vlSelfRef.calculator__DOT__mul_out
                                  : ((3U == (IData)(vlSelfRef.mode))
-                                     ? ((0ULL == vlSelfRef.b)
-                                         ? 0ULL : VL_DIV_QQQ(64, vlSelfRef.a, vlSelfRef.b))
+                                     ? vlSelfRef.calculator__DOT__div_out
                                      : 0ULL))));
 }
 

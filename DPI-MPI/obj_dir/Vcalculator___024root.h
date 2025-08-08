@@ -22,8 +22,14 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public Verilate
     VL_IN64(a,63,0);
     VL_IN64(b,63,0);
     VL_OUT64(result,63,0);
+    QData/*63:0*/ calculator__DOT__add_out;
+    QData/*63:0*/ calculator__DOT__sub_out;
     QData/*63:0*/ calculator__DOT__mul_out;
-    QData/*63:0*/ __Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__0__result;
+    QData/*63:0*/ calculator__DOT__div_out;
+    QData/*63:0*/ __Vtask_calculator__DOT__u_add__DOT__dpi_adder__0__result;
+    QData/*63:0*/ __Vtask_calculator__DOT__u_sub__DOT__dpi_subtractor__1__result;
+    QData/*63:0*/ __Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__2__result;
+    QData/*63:0*/ __Vtask_calculator__DOT__u_div__DOT__dpi_divider__3__result;
     VlTriggerVec<1> __VstlTriggered;
     VlTriggerVec<1> __VicoTriggered;
     VlTriggerVec<0> __VactTriggered;

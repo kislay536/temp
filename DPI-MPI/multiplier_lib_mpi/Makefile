@@ -44,7 +44,7 @@ build:
 	@echo "== == == 5. Making the library..."
 	make CXX=mpic++ LINK=mpic++ -C obj_dir_mul -f Vmultiplier.mk $(TOP)
 
-library:
+library: clean
 	@{ \
 		echo "Starting build at $$(date)"; \
 		(make get_lib copy_files verilate build copy_folder) > build_library.log 2>&1; \

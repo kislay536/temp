@@ -58,32 +58,35 @@ int main()
 
     MPI_Status status;
     int flag = 0;
-
+    int count = 0;
     while (!sim_end)
     {
+        count++;
         int flag = 0;
         int req_available = 0;
         MPI_Status status;
 
         // Non-blocking check for shutdown message from rank 0
         // MPI_Iprobe( int source , int tag , MPI_Comm comm , int* flag , MPI_Status* status);
-        MPI_Iprobe(0, 99, MPI_COMM_WORLD, &flag, &status);
+        MPI_Iprobe(0, 299, MPI_COMM_WORLD, &flag, &status);
 
         if (flag)
         {
             int dummy;
-            MPI_Recv(&dummy, 1, MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
+            // MPI_Recv( void* buf , MPI_Count count , MPI_Datatype datatype , int source , int tag , MPI_Comm comm , MPI_Status* status);
+            MPI_Recv(&dummy, 1, MPI_INT, 0, 299, MPI_COMM_WORLD, &status);
             std::cout << "Shutdown signal received!" << std::endl;
             sim_end = true;
             break;
         }
 
         MPI_Iprobe(0, req_flag, MPI_COMM_WORLD, &req_available, &status);
-        // std::cout << "==== ==== Waiting for Requests!!! ==== ====" << std::endl;
+        std::cout << "==== ==== Multiplier Waiting for Requests!!! ==== ====" << std::endl;
         if (req_available)
             mpi_req_serve(); // serve other requests
     }
     // cout << "About to finalise from library!!!" << endl;
-    finalize(0);
+    std::cout<<"Multipler ran for "<<count<<" cycles"<<endl;
+    finalize(2);
     exit(0);
 }

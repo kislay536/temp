@@ -147,6 +147,12 @@ VL_ATTR_COLD void Vcalculator___024root___ctor_var_reset(Vcalculator___024root* 
     vlSelf->b = VL_RAND_RESET_Q(64);
     vlSelf->mode = VL_RAND_RESET_I(4);
     vlSelf->result = VL_RAND_RESET_Q(64);
+    vlSelf->calculator__DOT__add_out = VL_RAND_RESET_Q(64);
+    vlSelf->calculator__DOT__sub_out = VL_RAND_RESET_Q(64);
     vlSelf->calculator__DOT__mul_out = VL_RAND_RESET_Q(64);
-    vlSelf->__Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__0__result = 0;
+    vlSelf->calculator__DOT__div_out = VL_RAND_RESET_Q(64);
+    vlSelf->__Vtask_calculator__DOT__u_add__DOT__dpi_adder__0__result = 0;
+    vlSelf->__Vtask_calculator__DOT__u_sub__DOT__dpi_subtractor__1__result = 0;
+    vlSelf->__Vtask_calculator__DOT__u_mul__DOT__dpi_multiplier__2__result = 0;
+    vlSelf->__Vtask_calculator__DOT__u_div__DOT__dpi_divider__3__result = 0;
 }

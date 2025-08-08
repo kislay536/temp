@@ -37,11 +37,11 @@ VM_PREFIX = Vcalculator
 VM_MODPREFIX = Vcalculator
 # User CFLAGS (from -CFLAGS on Verilator command line)
 VM_USER_CFLAGS = \
-	-O2 -Wall  \
+	-O2 -Wall \
 
 # User LDLIBS (from -LDFLAGS on Verilator command line)
 VM_USER_LDLIBS = \
-	 -lstdc++ \
+	-lstdc++ \
 
 # User .cpp files (from .cpp's on Verilator command line)
 VM_USER_CLASSES = \

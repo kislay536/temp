@@ -16,8 +16,14 @@ extern "C" {
 
 
     // DPI IMPORTS
+    // DPI import at adder.v:10:34
+    extern void dpi_adder(unsigned long long a, unsigned long long b, unsigned long long* result);
+    // DPI import at divider.v:9:34
+    extern void dpi_divider(unsigned long long a, unsigned long long b, unsigned long long* result);
     // DPI import at multiplier.v:9:34
     extern void dpi_multiplier(unsigned long long a, unsigned long long b, unsigned long long* result);
+    // DPI import at subtractor.v:11:34
+    extern void dpi_subtractor(unsigned long long a, unsigned long long b, unsigned long long* result);
 
 #ifdef __cplusplus
 }

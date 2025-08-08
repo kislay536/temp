@@ -6,6 +6,34 @@
 #include "Vcalculator__Syms.h"
 #include "Vcalculator___024root.h"
 
+extern "C" void dpi_adder(unsigned long long a, unsigned long long b, unsigned long long* result);
+
+VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_add__DOT__dpi_adder_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_add__DOT__dpi_adder_TOP\n"); );
+    // Body
+    unsigned long long a__Vcvt;
+    for (size_t a__Vidx = 0; a__Vidx < 1; ++a__Vidx) a__Vcvt = a;
+    unsigned long long b__Vcvt;
+    for (size_t b__Vidx = 0; b__Vidx < 1; ++b__Vidx) b__Vcvt = b;
+    unsigned long long result__Vcvt;
+    dpi_adder(a__Vcvt, b__Vcvt, &result__Vcvt);
+    result = result__Vcvt;
+}
+
+extern "C" void dpi_subtractor(unsigned long long a, unsigned long long b, unsigned long long* result);
+
+VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_sub__DOT__dpi_subtractor_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_sub__DOT__dpi_subtractor_TOP\n"); );
+    // Body
+    unsigned long long a__Vcvt;
+    for (size_t a__Vidx = 0; a__Vidx < 1; ++a__Vidx) a__Vcvt = a;
+    unsigned long long b__Vcvt;
+    for (size_t b__Vidx = 0; b__Vidx < 1; ++b__Vidx) b__Vcvt = b;
+    unsigned long long result__Vcvt;
+    dpi_subtractor(a__Vcvt, b__Vcvt, &result__Vcvt);
+    result = result__Vcvt;
+}
+
 extern "C" void dpi_multiplier(unsigned long long a, unsigned long long b, unsigned long long* result);
 
 VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_mul__DOT__dpi_multiplier_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result) {
@@ -17,6 +45,20 @@ VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_mul__D
     for (size_t b__Vidx = 0; b__Vidx < 1; ++b__Vidx) b__Vcvt = b;
     unsigned long long result__Vcvt;
     dpi_multiplier(a__Vcvt, b__Vcvt, &result__Vcvt);
+    result = result__Vcvt;
+}
+
+extern "C" void dpi_divider(unsigned long long a, unsigned long long b, unsigned long long* result);
+
+VL_INLINE_OPT void Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_div__DOT__dpi_divider_TOP(QData/*63:0*/ a, QData/*63:0*/ b, QData/*63:0*/ &result) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+    Vcalculator___024root____Vdpiimwrap_calculator__DOT__u_div__DOT__dpi_divider_TOP\n"); );
+    // Body
+    unsigned long long a__Vcvt;
+    for (size_t a__Vidx = 0; a__Vidx < 1; ++a__Vidx) a__Vcvt = a;
+    unsigned long long b__Vcvt;
+    for (size_t b__Vidx = 0; b__Vidx < 1; ++b__Vidx) b__Vcvt = b;
+    unsigned long long result__Vcvt;
+    dpi_divider(a__Vcvt, b__Vcvt, &result__Vcvt);
     result = result__Vcvt;
 }
 

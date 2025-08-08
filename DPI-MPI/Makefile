@@ -17,11 +17,13 @@ CXX_MPI_OBJECTS = mpi-dpi-sim.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Path to your previously compiled Vmultiplier model
-MULTIPLIER_OBJ_DIR = 
 MULTIPLIER_LIB = 
 MULTIPLIER_HEADERS = 
 
 MULTIPLIER_OBJ_DIR = obj_dir_mul
+ADDER_OBJ_DIR = obj_dir_add
+DIVIDER_OBJ_DIR = obj_dir_div
+SUBTRACTOR_OBJ_DIR = obj_dir_sub
 # MULTIPLIER_LIB = ../$(MULTIPLIER_OBJ_DIR)/libVmultiplier.a
 # MULTIPLIER_HEADERS = -I../$(MULTIPLIER_OBJ_DIR)
 
@@ -43,7 +45,7 @@ elaborate_dpi:clean
 
 build_dpi:
 	@echo "Building the simulation binary..."
-	@make -C $(OBJ_DIR) -f $(TOP).mk $(TOP) --CXX mpic++ > _dpi_build.log 2>&1
+	@make -C $(OBJ_DIR) -f $(TOP).mk $(TOP) CXX=mpic++ > _dpi_build.log 2>&1
 
 simulate_dpi:
 	@echo "Running simulation..."
@@ -64,8 +66,8 @@ elaborate_mpi:clean
 		--exe $(CXX_MPI_SOURCES) \
 		--Mdir $(OBJ_DIR) \
 		--top-module $(top_mod) \
-		-CFLAGS "-O2 -Wall $(MULTIPLIER_HEADERS)" \
-		-LDFLAGS "$(MULTIPLIER_LIB) -lstdc++" \
+		-CFLAGS "-O2 -Wall" \
+		-LDFLAGS "-lstdc++" \
 		--Wno-fatal --timing
 
 build_mpi:
@@ -74,12 +76,10 @@ build_mpi:
 
 simulate_mpi:
 	@echo "== == == 3. Running simulation..."
-	@mpirun -np 1 xterm -hold -e ./$(OBJ_DIR)/Vcalculator : -np 1 xterm -hold -e ./$(MULTIPLIER_OBJ_DIR)/Vmultiplier
+	@mpirun -np 1 xterm -hold -e ./$(OBJ_DIR)/Vcalculator : -np 1 xterm -hold -e ./$(DIVIDER_OBJ_DIR)/Vdivider : -np 1 xterm -hold -e ./$(MULTIPLIER_OBJ_DIR)/Vmultiplier : -np 1 xterm -hold -e ./$(ADDER_OBJ_DIR)/Vadder : -np 1 xterm -hold -e ./$(SUBTRACTOR_OBJ_DIR)/Vsubtractor
 
 clean:
 	@echo "Cleaning up..."
 	@rm -rf $(OBJ_DIR)
 	@clear
 
-hello:
-	g++ -o hello hello.cpp

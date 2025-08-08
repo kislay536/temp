@@ -65,7 +65,10 @@ void mpi_send_finish()
 {
     int dummy = 0;
     // MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
-    MPI_Send(&dummy, 1, MPI_INT, 1, 99, MPI_COMM_WORLD);
+    MPI_Send(&dummy, 1, MPI_INT, 1, 199, MPI_COMM_WORLD);
+    MPI_Send(&dummy, 1, MPI_INT, 2, 299, MPI_COMM_WORLD);
+    MPI_Send(&dummy, 1, MPI_INT, 3, 399, MPI_COMM_WORLD);
+    MPI_Send(&dummy, 1, MPI_INT, 4, 499, MPI_COMM_WORLD);
 }
 
 void mpi_send_request(mpi_struct_req message, int dest, int rank, int flag)
@@ -125,8 +128,11 @@ int getSize()
 
 void finalize(int a)
 {
-    if(a==0) cout<<"Ending Communication from Multiplier!!!"<<endl;
-    else if(a==1) cout<<"Ending Communication from Calculator!!!"<<endl;
+    if(a==0) cout<<"Ending Communication from Calculator!!!"<<endl;
+    else if(a==1) cout<<"Ending Communication from Divider!!!"<<endl;
+    else if(a==2) cout<<"Ending Communication from Multiplier!!!"<<endl;
+    else if(a==3) cout<<"Ending Communication from Adder!!!"<<endl;
+    else if(a==4) cout<<"Ending Communication from Subtractor!!!"<<endl;
     // cout << "[DPI CPP] Finalizing" << endl;
     MPI_Finalize();
 }

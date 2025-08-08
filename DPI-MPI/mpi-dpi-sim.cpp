@@ -31,19 +31,19 @@ int req_flag = 2;
 int resp_flag = 4;
 
 // === MPI Functions ===
-void mpi_request(unsigned long long a, unsigned long long b)
+void mpi_request(unsigned long long a, unsigned long long b, int dest)
 {
     mpi_struct_req message;
     message.data_0 = a;
     message.data_1 = b;
     // cout << "2. Sending the operands from mpi-dpi-sim.cpp to mpi-lib-mul.cpp" << endl;
-    mpi_send_request(message, 1, 0, req_flag); // have to figure out
+    mpi_send_request(message, dest, 0, req_flag); // have to figure out
 }
 
-int mpi_response()
+int mpi_response(int a)
 {
     mpi_struct_resp message;
-    message = mpi_receive_response(1, resp_flag);
+    message = mpi_receive_response(a, resp_flag);
     return message.result;
 }
 
@@ -51,8 +51,32 @@ int mpi_response()
 extern "C" void dpi_multiplier(unsigned long long a, unsigned long long b, unsigned long long *result)
 {
     // cout << "1. Entered DPI-MPI interface!" << endl;
-    mpi_request(a, b);
-    *result = mpi_response();
+    mpi_request(a, b, 2);
+    *result = mpi_response(2);
+    return;
+}
+
+extern "C" void dpi_divider(unsigned long long a, unsigned long long b, unsigned long long *result)
+{
+    // cout << "1. Entered DPI-MPI interface!" << endl;
+    mpi_request(a, b, 1);
+    *result = mpi_response(1);
+    return;
+}
+
+extern "C" void dpi_adder(unsigned long long a, unsigned long long b, unsigned long long *result)
+{
+    // cout << "1. Entered DPI-MPI interface!" << endl;
+    mpi_request(a, b, 3);
+    *result = mpi_response(3);
+    return;
+}
+
+extern "C" void dpi_subtractor(unsigned long long a, unsigned long long b, unsigned long long *result)
+{
+    // cout << "1. Entered DPI-MPI interface!" << endl;
+    mpi_request(a, b, 4);
+    *result = mpi_response(4);
     return;
 }
 
@@ -67,7 +91,7 @@ int main(int argc, char **argv, char **env)
     rank = getRank();
     size = getSize();
 
-    // std::cout << "Calculator size: " << size << ", rank: " << rank << std::endl;
+    std::cout << "Calculator size: " << size << ", rank: " << rank << std::endl;
 
     // Test: a = 10, b = 5
     top->a = 30;
@@ -90,7 +114,7 @@ int main(int argc, char **argv, char **env)
         printf(" -> Result: %lu\n", top->result);
     }
     mpi_send_finish();
-    finalize(1);
+    finalize(0);
 
     delete top;
     exit(0);
