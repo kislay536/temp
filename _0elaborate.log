@@ -1,6 +1,48 @@
 MetroMPI 1. Going for verilate function: verilate(argString) in verilator.cpp(main)
 MetroMPI 2. Going for process function: process() in verilator.cpp(verilate)
 metro_mpi() at 211 in verilator.cpp
+MetroMPI Trying to print the nodes Def in V3Metro_MPI.h::HierCellsGraphVisitor 
+Visiting: $root
+    Instance: $root
+    Module  : $root
+    Hier(inst): $root
+    Hier(mod) : $root
+    Hash(mod) : fc80f6233082f8de618a56be675b32ac
+
+Visiting: $root.u_add
+    Instance: u_add
+    Module  : adder
+    Hier(inst): $root.u_add
+    Hier(mod) : $root.adder
+    Hash(mod) : 6a617bd1733a6fa73c6f2aaeb01a2d80
+
+Visiting: $root.u_sub
+    Instance: u_sub
+    Module  : subtractor
+    Hier(inst): $root.u_sub
+    Hier(mod) : $root.subtractor
+    Hash(mod) : 327cd20846b4b832fde53e6eb4115edf
+
+Visiting: $root.u_mul
+    Instance: u_mul
+    Module  : multiplier
+    Hier(inst): $root.u_mul
+    Hier(mod) : $root.multiplier
+    Hash(mod) : 498fabfe516ff162f27bda86a7f77193
+
+Visiting: $root.u_div
+    Instance: u_div
+    Module  : divider
+    Hier(inst): $root.u_div
+    Hier(mod) : $root.divider
+    Hash(mod) : f2b1e24064f5aa753bb0d1ad5f38a0e8
+
+No duplicate hashes found at any level.
+Printing the instance to module map
+Instance: u_div, Module: divider
+Instance: u_mul, Module: multiplier
+Instance: u_sub, Module: subtractor
+Instance: u_add, Module: adder
 - V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-2-g9876d27ad
 - Verilator: Built from 0.072 MB sources in 6 modules, into 0.031 MB in 8 C++ files needing 0.000 MB
-- Verilator: Walltime 0.005 s (elab=0.000, cvt=0.002, bld=0.000); cpu 0.005 s on 1 threads; alloced 20.398 MB
+- Verilator: Walltime 0.013 s (elab=0.001, cvt=0.004, bld=0.000); cpu 0.010 s on 1 threads; alloced 20.461 MB

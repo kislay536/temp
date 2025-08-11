@@ -1,4 +1,4 @@
-make[1]: Entering directory '/home/kislay/Documents/gsoc/hihoc/verilator/_test-designs/aes/manipulated/obj_dir'
+make[1]: Entering directory '/home/kislay/Music/temp/obj_dir'
 ccache g++  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall -I../obj_dir_mul   -Os  -c -o dpi_impl.o ../dpi_impl.cpp
 ccache g++  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall -I../obj_dir_mul   -Os  -c -o sim_main.o ../sim_main.cpp
 ccache g++ -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall -I../obj_dir_mul   -c -o verilated.o /usr/local/share/verilator/include/verilated.cpp
@@ -9,4 +9,4 @@ ccache g++ -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/shar
 echo "" > Vcalculator__ALL.verilator_deplist.tmp
 g++    dpi_impl.o sim_main.o verilated.o verilated_dpi.o verilated_threads.o Vcalculator__ALL.a   ../obj_dir_mul/libVmultiplier.a -lstdc++  -pthread -lpthread -latomic   -o Vcalculator
 rm Vcalculator__ALL.verilator_deplist.tmp
-make[1]: Leaving directory '/home/kislay/Documents/gsoc/hihoc/verilator/_test-designs/aes/manipulated/obj_dir'
+make[1]: Leaving directory '/home/kislay/Music/temp/obj_dir'
