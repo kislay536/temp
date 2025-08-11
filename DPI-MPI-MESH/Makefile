@@ -1,4 +1,4 @@
-SRC_FILES = alu_tile.v  calculator.v
+SRC_FILES = alu_tile_noc.v  calculator.v
 OBJ_DIR = obj_dir
 TOP = Vcalculator
 top_mod ?= calculator
@@ -19,7 +19,7 @@ elaborate:clean
 		--top-module $(top_mod) \
 		-CFLAGS "-O2 -Wall $(MULTIPLIER_HEADERS)" \
 		-LDFLAGS "$(MULTIPLIER_LIB) -lstdc++" \
-		--Wno-fatal --timing
+		--Wno-fatal --timing --trace
 
 build:
 	@echo "Building the simulation binary..."

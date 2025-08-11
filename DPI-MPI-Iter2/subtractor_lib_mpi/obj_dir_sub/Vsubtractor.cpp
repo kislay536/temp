@@ -1,0 +1,109 @@
+// Verilated -*- C++ -*-
+// DESCRIPTION: Verilator output: Model implementation (design independent parts)
+
+#include "Vsubtractor__pch.h"
+
+//============================================================
+// Constructors
+
+Vsubtractor::Vsubtractor(VerilatedContext* _vcontextp__, const char* _vcname__)
+    : VerilatedModel{*_vcontextp__}
+    , vlSymsp{new Vsubtractor__Syms(contextp(), _vcname__, this)}
+    , start{vlSymsp->TOP.start}
+    , ack_in_add{vlSymsp->TOP.ack_in_add}
+    , ack_in_mul{vlSymsp->TOP.ack_in_mul}
+    , ack_in_div{vlSymsp->TOP.ack_in_div}
+    , add_working{vlSymsp->TOP.add_working}
+    , mul_working{vlSymsp->TOP.mul_working}
+    , div_working{vlSymsp->TOP.div_working}
+    , ack_to_add{vlSymsp->TOP.ack_to_add}
+    , ack_to_mul{vlSymsp->TOP.ack_to_mul}
+    , ack_to_div{vlSymsp->TOP.ack_to_div}
+    , working{vlSymsp->TOP.working}
+    , a{vlSymsp->TOP.a}
+    , b{vlSymsp->TOP.b}
+    , result{vlSymsp->TOP.result}
+    , rootp{&(vlSymsp->TOP)}
+{
+    // Register model with the context
+    contextp()->addModel(this);
+}
+
+Vsubtractor::Vsubtractor(const char* _vcname__)
+    : Vsubtractor(Verilated::threadContextp(), _vcname__)
+{
+}
+
+//============================================================
+// Destructor
+
+Vsubtractor::~Vsubtractor() {
+    delete vlSymsp;
+}
+
+//============================================================
+// Evaluation function
+
+#ifdef VL_DEBUG
+void Vsubtractor___024root___eval_debug_assertions(Vsubtractor___024root* vlSelf);
+#endif  // VL_DEBUG
+void Vsubtractor___024root___eval_static(Vsubtractor___024root* vlSelf);
+void Vsubtractor___024root___eval_initial(Vsubtractor___024root* vlSelf);
+void Vsubtractor___024root___eval_settle(Vsubtractor___024root* vlSelf);
+void Vsubtractor___024root___eval(Vsubtractor___024root* vlSelf);
+
+void Vsubtractor::eval_step() {
+    VL_DEBUG_IF(VL_DBG_MSGF("+++++TOP Evaluate Vsubtractor::eval_step\n"); );
+#ifdef VL_DEBUG
+    // Debug assertions
+    Vsubtractor___024root___eval_debug_assertions(&(vlSymsp->TOP));
+#endif  // VL_DEBUG
+    vlSymsp->__Vm_deleter.deleteAll();
+    if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) {
+        vlSymsp->__Vm_didInit = true;
+        VL_DEBUG_IF(VL_DBG_MSGF("+ Initial\n"););
+        Vsubtractor___024root___eval_static(&(vlSymsp->TOP));
+        Vsubtractor___024root___eval_initial(&(vlSymsp->TOP));
+        Vsubtractor___024root___eval_settle(&(vlSymsp->TOP));
+    }
+    VL_DEBUG_IF(VL_DBG_MSGF("+ Eval\n"););
+    Vsubtractor___024root___eval(&(vlSymsp->TOP));
+    // Evaluate cleanup
+    Verilated::endOfEval(vlSymsp->__Vm_evalMsgQp);
+}
+
+//============================================================
+// Events and timing
+bool Vsubtractor::eventsPending() { return false; }
+
+uint64_t Vsubtractor::nextTimeSlot() {
+    VL_FATAL_MT(__FILE__, __LINE__, "", "No delays in the design");
+    return 0;
+}
+
+//============================================================
+// Utilities
+
+const char* Vsubtractor::name() const {
+    return vlSymsp->name();
+}
+
+//============================================================
+// Invoke final blocks
+
+void Vsubtractor___024root___eval_final(Vsubtractor___024root* vlSelf);
+
+VL_ATTR_COLD void Vsubtractor::final() {
+    Vsubtractor___024root___eval_final(&(vlSymsp->TOP));
+}
+
+//============================================================
+// Implementations of abstract methods from VerilatedModel
+
+const char* Vsubtractor::hierName() const { return vlSymsp->name(); }
+const char* Vsubtractor::modelName() const { return "Vsubtractor"; }
+unsigned Vsubtractor::threads() const { return 1; }
+void Vsubtractor::prepareClone() const { contextp()->prepareClone(); }
+void Vsubtractor::atClone() const {
+    contextp()->threadPoolpOnClone();
+}

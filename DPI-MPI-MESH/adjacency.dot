@@ -1,0 +1,10 @@
+Parent: $root
+  └─ Instance: t0_0, Module: alu_tile_noc, Hier: $root.t0_0
+  └─ Instance: t0_1, Module: alu_tile_noc, Hier: $root.t0_1
+  └─ Instance: t0_2, Module: alu_tile_noc, Hier: $root.t0_2
+  └─ Instance: t1_0, Module: alu_tile_noc, Hier: $root.t1_0
+  └─ Instance: t1_1, Module: alu_tile_noc, Hier: $root.t1_1
+  └─ Instance: t1_2, Module: alu_tile_noc, Hier: $root.t1_2
+  └─ Instance: t2_0, Module: alu_tile_noc, Hier: $root.t2_0
+  └─ Instance: t2_1, Module: alu_tile_noc, Hier: $root.t2_1
+  └─ Instance: t2_2, Module: alu_tile_noc, Hier: $root.t2_2

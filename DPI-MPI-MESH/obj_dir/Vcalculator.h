@@ -12,6 +12,7 @@
 
 class Vcalculator__Syms;
 class Vcalculator___024root;
+class VerilatedVcdC;
 
 // This class is the main interface to the Verilated model
 class alignas(VL_CACHE_LINE_BYTES) Vcalculator VL_NOT_FINAL : public VerilatedModel {
@@ -23,12 +24,13 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator VL_NOT_FINAL : public VerilatedMo
 
     // CONSTEXPR CAPABILITIES
     // Verilated with --trace?
-    static constexpr bool traceCapable = false;
+    static constexpr bool traceCapable = true;
 
     // PORTS
     // The application code writes and reads these signals to
     // propagate new values into/out from the Verilated model.
     VL_IN8(&mode,3,0);
+    VL_OUT8(&valid,0,0);
     VL_IN64(&a,63,0);
     VL_IN64(&b,63,0);
     VL_OUT64(&result,63,0);
@@ -83,6 +85,7 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator VL_NOT_FINAL : public VerilatedMo
     /// Re-init after cloning the model at the process level (e.g. fork in Linux)
     /// Re-allocate necessary resources. Called after cloning.
     void atClone() const;
+    std::unique_ptr<VerilatedTraceConfig> traceConfig() const override final;
   private:
     // Internal functions - trace registration
     void traceBaseModel(VerilatedTraceBaseC* tfp, int levels, int options);

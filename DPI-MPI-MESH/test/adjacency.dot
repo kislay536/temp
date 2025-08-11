@@ -1,0 +1,12 @@
+Parent: $root.grid
+  └─ Instance: tile00, Module: alu_tile, Hier: $root.grid.tile00
+  └─ Instance: tile10, Module: alu_tile, Hier: $root.grid.tile10
+  └─ Instance: tile20, Module: alu_tile, Hier: $root.grid.tile20
+  └─ Instance: tile01, Module: alu_tile, Hier: $root.grid.tile01
+  └─ Instance: tile11, Module: alu_tile, Hier: $root.grid.tile11
+  └─ Instance: tile21, Module: alu_tile, Hier: $root.grid.tile21
+  └─ Instance: tile02, Module: alu_tile, Hier: $root.grid.tile02
+  └─ Instance: tile12, Module: alu_tile, Hier: $root.grid.tile12
+  └─ Instance: tile22, Module: alu_tile, Hier: $root.grid.tile22
+Parent: $root
+  └─ Instance: grid, Module: calculator_grid, Hier: $root.grid

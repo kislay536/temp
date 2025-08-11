@@ -1,0 +1,142 @@
+make[1]: Entering directory '/home/kislay/Music/temp/DPI-MPI-MESH'
+Cleaning up...
+[H[2J[3JElaborating with DPI...
+verilator -cc alu_tile.v  calculator.v calculator_grid.v \
+	--exe sim.cpp  \
+	--Mdir obj_dir \
+	--top-module calculator \
+	-CFLAGS "-O2 -Wall " \
+	-LDFLAGS " -lstdc++" \
+	--Wno-fatal --timing --trace
+MetroMPI 1. Going for verilate function: verilate(argString) in verilator.cpp(main)
+MetroMPI 2. Going for process function: process() in verilator.cpp(verilate)
+metro_mpi() at 211 in verilator.cpp
+MetroMPI Trying to print the nodes Def in V3Metro_MPI.h::HierCellsGraphVisitor 
+Visiting: $root
+    Instance: $root
+    Module  : $root
+    Hier(inst): $root
+    Hier(mod) : $root
+    Hash(mod) : fc80f6233082f8de618a56be675b32ac
+
+Visiting: $root.grid
+    Instance: grid
+    Module  : calculator_grid
+    Hier(inst): $root.grid
+    Hier(mod) : $root.calculator_grid
+    Hash(mod) : e50788a7fa08c79b2c227a5d2414d743
+
+Visiting: $root.grid.tile00
+    Instance: tile00
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile00
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile10
+    Instance: tile10
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile10
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile20
+    Instance: tile20
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile20
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile01
+    Instance: tile01
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile01
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile11
+    Instance: tile11
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile11
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile21
+    Instance: tile21
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile21
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile02
+    Instance: tile02
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile02
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile12
+    Instance: tile12
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile12
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Visiting: $root.grid.tile22
+    Instance: tile22
+    Module  : alu_tile
+    Hier(inst): $root.grid.tile22
+    Hier(mod) : $root.calculator_grid.alu_tile
+    Hash(mod) : 86ecee1b1fa8abf809eb6b0296523756
+
+Duplicate hash(es) found at level 1:
+  Hash: 86ecee1b1fa8abf809eb6b0296523756 (Max weight sum: 9)
+    Module: alu_tile, Instance: tile00, Hier: $root.grid.tile00, Weight: 1
+    Module: alu_tile, Instance: tile10, Hier: $root.grid.tile10, Weight: 1
+    Module: alu_tile, Instance: tile20, Hier: $root.grid.tile20, Weight: 1
+    Module: alu_tile, Instance: tile01, Hier: $root.grid.tile01, Weight: 1
+    Module: alu_tile, Instance: tile11, Hier: $root.grid.tile11, Weight: 1
+    Module: alu_tile, Instance: tile21, Hier: $root.grid.tile21, Weight: 1
+    Module: alu_tile, Instance: tile02, Hier: $root.grid.tile02, Weight: 1
+    Module: alu_tile, Instance: tile12, Hier: $root.grid.tile12, Weight: 1
+    Module: alu_tile, Instance: tile22, Hier: $root.grid.tile22, Weight: 1
+Marked module 'alu_tile' as hierBlock(true).
+Printing the instance to module map
+Instance: tile22, Module: alu_tile
+Instance: tile12, Module: alu_tile
+Instance: tile02, Module: alu_tile
+Instance: tile11, Module: alu_tile
+Instance: tile21, Module: alu_tile
+Instance: tile01, Module: alu_tile
+Instance: tile10, Module: alu_tile
+Instance: tile00, Module: alu_tile
+Instance: tile20, Module: alu_tile
+Instance: grid, Module: calculator_grid
+- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-2-g9876d27ad
+- Verilator: Built from 0.052 MB sources in 4 modules, into 0.086 MB in 10 C++ files needing 0.000 MB
+- Verilator: Walltime 0.010 s (elab=0.001, cvt=0.006, bld=0.000); cpu 0.010 s on 1 threads; alloced 21.457 MB
+Building the simulation binary...
+make[2]: Entering directory '/home/kislay/Music/temp/DPI-MPI-MESH/obj_dir'
+ccache g++  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall   -Os  -c -o sim.o ../sim.cpp
+ccache g++ -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall   -c -o verilated.o /usr/local/share/verilator/include/verilated.cpp
+ccache g++ -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall   -c -o verilated_vcd_c.o /usr/local/share/verilator/include/verilated_vcd_c.cpp
+ccache g++ -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall   -c -o verilated_threads.o /usr/local/share/verilator/include/verilated_threads.cpp
+python3 /usr/local/share/verilator/bin/verilator_includer -DVL_INCLUDE_OPT=include Vcalculator.cpp Vcalculator___024root__DepSet_he109b094__0.cpp Vcalculator___024root__DepSet_h4f6ef6e6__0.cpp Vcalculator__Trace__0.cpp Vcalculator___024root__Slow.cpp Vcalculator___024root__DepSet_he109b094__0__Slow.cpp Vcalculator___024root__DepSet_h4f6ef6e6__0__Slow.cpp Vcalculator__Syms.cpp Vcalculator__Trace__0__Slow.cpp Vcalculator__TraceDecls__0__Slow.cpp > Vcalculator__ALL.cpp
+ccache g++ -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall   -c -o Vcalculator__ALL.o Vcalculator__ALL.cpp
+echo "" > Vcalculator__ALL.verilator_deplist.tmp
+g++    sim.o verilated.o verilated_vcd_c.o verilated_threads.o Vcalculator__ALL.a   -lstdc++  -pthread -lpthread -latomic   -o Vcalculator
+rm Vcalculator__ALL.verilator_deplist.tmp
+make[2]: Leaving directory '/home/kislay/Music/temp/DPI-MPI-MESH/obj_dir'
+Running simulation...
+mode=0 valid=1 result=23
+mode=1 valid=1 result=17
+mode=2 valid=1 result=60
+mode=3 valid=1 result=6
+mode=4 valid=1 result=0
+mode=5 valid=1 result=23
+mode=6 valid=1 result=23
+mode=7 valid=1 result=160
+mode=8 valid=1 result=2
+mode=4 valid=1 result=0
+mode=7 valid=1 result=0
+make[1]: Leaving directory '/home/kislay/Music/temp/DPI-MPI-MESH'

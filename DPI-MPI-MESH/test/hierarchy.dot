@@ -1,0 +1,12 @@
+digraph G {
+  "$root" -> "$root.grid";
+  "$root.grid" -> "$root.grid.tile00";
+  "$root.grid" -> "$root.grid.tile10";
+  "$root.grid" -> "$root.grid.tile20";
+  "$root.grid" -> "$root.grid.tile01";
+  "$root.grid" -> "$root.grid.tile11";
+  "$root.grid" -> "$root.grid.tile21";
+  "$root.grid" -> "$root.grid.tile02";
+  "$root.grid" -> "$root.grid.tile12";
+  "$root.grid" -> "$root.grid.tile22";
+}
