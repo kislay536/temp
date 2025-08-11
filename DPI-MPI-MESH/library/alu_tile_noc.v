@@ -70,6 +70,8 @@ module alu_tile_noc #(
     output reg         host_out_valid
 );
 
+    terminate term(.a(1'b0));
+
     always @(*) if (sel_valid && am_dest && !sel_resp)
         $display("[t=%0t] Tile(%0d,%0d): op=%0d, A=%0d, B=%0d, Res=%0d",
                 $time, TILE_X, TILE_Y, sel_mode, sel_a, sel_b, op_result);

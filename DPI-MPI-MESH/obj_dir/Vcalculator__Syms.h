@@ -16,6 +16,8 @@
 // INCLUDE MODULE CLASSES
 #include "Vcalculator___024root.h"
 
+// DPI TYPES for DPI Export callbacks (Internal use)
+
 // SYMS CLASS (contains all model state)
 class alignas(VL_CACHE_LINE_BYTES)Vcalculator__Syms final : public VerilatedSyms {
   public:

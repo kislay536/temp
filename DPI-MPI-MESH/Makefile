@@ -1,9 +1,11 @@
-SRC_FILES = alu_tile_noc.v  calculator.v
+SRC_FILES = alu_tile_noc.v  calculator.v intermediate.v
 OBJ_DIR = obj_dir
 TOP = Vcalculator
 top_mod ?= calculator
 DPI_SOURCES =
 CXX_SOURCES = sim.cpp $(DPI_SOURCES)
+CLEAN = _build_sim.log adjacency.dot calculator.html  calculator.xml hierarchy.dot 
+
 
 verilate: clean
 	@echo "Verilating design with top module '$(top_mod)'..."
@@ -32,11 +34,24 @@ simulate:
 piton:
 	@{ \
 		echo "Starting build at $$(date)"; \
-		(make elaborate build simulate) > _build_sim.log 2>&1; \
+		(make elaborate build simulate) > build_sim.log 2>&1; \
 		echo "Build finished at $$(date)"; \
 	}
 
 clean:
 	@echo "Cleaning up..."
 	@rm -rf $(OBJ_DIR)
+	@if [ -d xml ]; then rm -rf xml; fi
+	@for f in $(CLEAN); do \
+		if [ -e "$$f" ]; then rm "$$f"; fi; \
+	done
 	@clear
+
+xml:
+	@if [ -d xml ]; then rm -rf xml; fi
+	@if [ ! -d xml ]; then mkdir xml; fi
+	verilator -Wall -cc -xml-only -xml-output xml/calculator.xml --top-module $(top_mod) *.v --Wno-fatal
+
+python:
+	@python3 _vis.py
+	@python3 _metro_mpi.py

@@ -19,6 +19,7 @@
 
 
 #include "verilated.h"
+#include "verilated_dpi.h"
 
 #include "Vcalculator__Syms.h"
 #include "Vcalculator.h"

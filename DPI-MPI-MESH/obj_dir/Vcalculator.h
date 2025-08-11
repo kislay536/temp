@@ -9,6 +9,7 @@
 #define VERILATED_VCALCULATOR_H_  // guard
 
 #include "verilated.h"
+#include "svdpi.h"
 
 class Vcalculator__Syms;
 class Vcalculator___024root;

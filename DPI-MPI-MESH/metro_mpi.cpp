@@ -2,14 +2,6 @@
 #include <iostream>
 using namespace std;
 
-// const int nitems_all_req = 9;
-// int blocklengths_all_req[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-// MPI_Datatype types_all_req[9] = {MPI_UNSIGNED_LONG_LONG, MPI_UNSIGNED_LONG_LONG, MPI_UNSIGNED_LONG_LONG,
-//                              MPI_UNSIGNED_SHORT, MPI_UNSIGNED_SHORT, MPI_UNSIGNED_SHORT,
-//                              MPI_UNSIGNED_SHORT, MPI_UNSIGNED_SHORT, MPI_UNSIGNED_SHORT};
-// MPI_Datatype mpi_all_type_req;
-// MPI_Aint offsets_all_req[9];
-
 const int nitems_all_req = 9;
 int blocklengths_all_req[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
 MPI_Datatype types_all_req[9] = {MPI_UNSIGNED_LONG_LONG, MPI_UNSIGNED_LONG_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG};
