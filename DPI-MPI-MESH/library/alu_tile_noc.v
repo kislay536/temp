@@ -13,10 +13,9 @@
 // ---------------------------
 // Tile (combinational router + ALU)
 // ---------------------------
-module alu_tile_noc #(
-    parameter integer TILE_X = 0,
-    parameter integer TILE_Y = 0
-)(
+module alu_tile_noc (
+    input  wire [7:0] TILE_X,
+    input  wire [7:0] TILE_Y,
     // inputs from neighbors (one cycle atomic flit: a,b,ctrl,valid)
     input  wire [63:0] in_a_n,
     input  wire [63:0] in_b_n,

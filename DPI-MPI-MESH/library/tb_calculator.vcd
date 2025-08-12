@@ -260,8 +260,8 @@ $timescale 1ps $end
     $var wire 1 q# valid_r $end
     $var wire 32 r# any [31:0] $end
     $scope module t0_0 $end
-     $var wire 32 a( TILE_X [31:0] $end
-     $var wire 32 a( TILE_Y [31:0] $end
+     $var wire 8 a( TILE_X [7:0] $end
+     $var wire 8 a( TILE_Y [7:0] $end
      $var wire 64 b( in_a_n [63:0] $end
      $var wire 64 b( in_b_n [63:0] $end
      $var wire 16 d( in_ctrl_n [15:0] $end
@@ -321,8 +321,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t0_1 $end
-     $var wire 32 g( TILE_X [31:0] $end
-     $var wire 32 a( TILE_Y [31:0] $end
+     $var wire 8 g( TILE_X [7:0] $end
+     $var wire 8 a( TILE_Y [7:0] $end
      $var wire 64 b( in_a_n [63:0] $end
      $var wire 64 b( in_b_n [63:0] $end
      $var wire 16 d( in_ctrl_n [15:0] $end
@@ -382,8 +382,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t0_2 $end
-     $var wire 32 i( TILE_X [31:0] $end
-     $var wire 32 a( TILE_Y [31:0] $end
+     $var wire 8 i( TILE_X [7:0] $end
+     $var wire 8 a( TILE_Y [7:0] $end
      $var wire 64 b( in_a_n [63:0] $end
      $var wire 64 b( in_b_n [63:0] $end
      $var wire 16 d( in_ctrl_n [15:0] $end
@@ -443,8 +443,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t1_0 $end
-     $var wire 32 a( TILE_X [31:0] $end
-     $var wire 32 g( TILE_Y [31:0] $end
+     $var wire 8 a( TILE_X [7:0] $end
+     $var wire 8 g( TILE_Y [7:0] $end
      $var wire 64 K$ in_a_n [63:0] $end
      $var wire 64 M$ in_b_n [63:0] $end
      $var wire 16 O$ in_ctrl_n [15:0] $end
@@ -504,8 +504,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t1_1 $end
-     $var wire 32 g( TILE_X [31:0] $end
-     $var wire 32 g( TILE_Y [31:0] $end
+     $var wire 8 g( TILE_X [7:0] $end
+     $var wire 8 g( TILE_Y [7:0] $end
      $var wire 64 s# in_a_n [63:0] $end
      $var wire 64 u# in_b_n [63:0] $end
      $var wire 16 w# in_ctrl_n [15:0] $end
@@ -565,8 +565,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t1_2 $end
-     $var wire 32 i( TILE_X [31:0] $end
-     $var wire 32 g( TILE_Y [31:0] $end
+     $var wire 8 i( TILE_X [7:0] $end
+     $var wire 8 g( TILE_Y [7:0] $end
      $var wire 64 ?$ in_a_n [63:0] $end
      $var wire 64 A$ in_b_n [63:0] $end
      $var wire 16 C$ in_ctrl_n [15:0] $end
@@ -626,8 +626,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t2_0 $end
-     $var wire 32 a( TILE_X [31:0] $end
-     $var wire 32 i( TILE_Y [31:0] $end
+     $var wire 8 a( TILE_X [7:0] $end
+     $var wire 8 i( TILE_Y [7:0] $end
      $var wire 64 y# in_a_n [63:0] $end
      $var wire 64 {# in_b_n [63:0] $end
      $var wire 16 }# in_ctrl_n [15:0] $end
@@ -687,8 +687,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t2_1 $end
-     $var wire 32 g( TILE_X [31:0] $end
-     $var wire 32 i( TILE_Y [31:0] $end
+     $var wire 8 g( TILE_X [7:0] $end
+     $var wire 8 i( TILE_Y [7:0] $end
      $var wire 64 E$ in_a_n [63:0] $end
      $var wire 64 G$ in_b_n [63:0] $end
      $var wire 16 I$ in_ctrl_n [15:0] $end
@@ -748,8 +748,8 @@ $timescale 1ps $end
      $upscope $end
     $upscope $end
     $scope module t2_2 $end
-     $var wire 32 i( TILE_X [31:0] $end
-     $var wire 32 i( TILE_Y [31:0] $end
+     $var wire 8 i( TILE_X [7:0] $end
+     $var wire 8 i( TILE_Y [7:0] $end
      $var wire 64 r$ in_a_n [63:0] $end
      $var wire 64 t$ in_b_n [63:0] $end
      $var wire 16 v$ in_ctrl_n [15:0] $end
@@ -1458,14 +1458,14 @@ b0000000000000000000000000000000000000000000000000000000000000011 [(
 b0000 ](
 b0000000000000000000000000000000000000000000000000000000000010111 ^(
 1`(
-b00000000000000000000000000000000 a(
+b00000000 a(
 b0000000000000000000000000000000000000000000000000000000000000000 b(
 b0000000000000000 d(
 0e(
 b00 f(
-b00000000000000000000000000000001 g(
+b00000001 g(
 b01 h(
-b00000000000000000000000000000010 i(
+b00000010 i(
 b10 j(
 b00000000000000000000000000000000 k(
 #1

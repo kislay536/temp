@@ -166,8 +166,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->declBit(c+361,0,"valid_r",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::VAR, VerilatedTraceSigType::LOGIC, false,-1);
     tracep->declBus(c+362,0,"any",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::VAR, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
     tracep->pushPrefix("t0_0", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+815,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+815,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+815,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+815,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+816,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+816,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+818,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -227,8 +227,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t0_1", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+821,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+815,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+821,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+815,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+816,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+816,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+818,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -288,8 +288,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t0_2", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+823,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+815,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+823,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+815,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+816,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+816,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+818,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -349,8 +349,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t1_0", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+815,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+821,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+815,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+821,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+417,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+419,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+421,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -410,8 +410,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t1_1", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+821,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+821,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+821,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+821,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+363,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+365,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+367,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -471,8 +471,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t1_2", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+823,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+821,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+823,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+821,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+405,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+407,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+409,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -532,8 +532,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t2_0", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+815,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+823,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+815,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+823,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+369,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+371,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+373,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -593,8 +593,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t2_1", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+821,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+823,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+821,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+823,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+411,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+413,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+415,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -654,8 +654,8 @@ VL_ATTR_COLD void Vcalculator___024root__trace_init_sub__TOP__0(Vcalculator___02
     tracep->popPrefix();
     tracep->popPrefix();
     tracep->pushPrefix("t2_2", VerilatedTracePrefixType::SCOPE_MODULE);
-    tracep->declBus(c+823,0,"TILE_X",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
-    tracep->declBus(c+823,0,"TILE_Y",-1, VerilatedTraceSigDirection::NONE, VerilatedTraceSigKind::PARAMETER, VerilatedTraceSigType::INTEGER, false,-1, 31,0);
+    tracep->declBus(c+823,0,"TILE_X",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
+    tracep->declBus(c+823,0,"TILE_Y",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 7,0);
     tracep->declQuad(c+456,0,"in_a_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declQuad(c+458,0,"in_b_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 63,0);
     tracep->declBus(c+460,0,"in_ctrl_n",-1, VerilatedTraceSigDirection::INPUT, VerilatedTraceSigKind::WIRE, VerilatedTraceSigType::LOGIC, false,-1, 15,0);
@@ -821,14 +821,14 @@ VL_ATTR_COLD void Vcalculator___024root__trace_const_0_sub_0(Vcalculator___024ro
     // Init
     uint32_t* const oldp VL_ATTR_UNUSED = bufp->oldp(vlSymsp->__Vm_baseCode);
     // Body
-    bufp->fullIData(oldp+815,(0U),32);
+    bufp->fullCData(oldp+815,(0U),8);
     bufp->fullQData(oldp+816,(0ULL),64);
     bufp->fullSData(oldp+818,(0U),16);
     bufp->fullBit(oldp+819,(0U));
     bufp->fullCData(oldp+820,(0U),2);
-    bufp->fullIData(oldp+821,(1U),32);
+    bufp->fullCData(oldp+821,(1U),8);
     bufp->fullCData(oldp+822,(1U),2);
-    bufp->fullIData(oldp+823,(2U),32);
+    bufp->fullCData(oldp+823,(2U),8);
     bufp->fullCData(oldp+824,(2U),2);
     bufp->fullIData(oldp+825,(vlSelfRef.calculator__DOT__int_con__DOT__unnamedblk2__DOT__j),32);
 }

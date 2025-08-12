@@ -58,7 +58,8 @@ module intermediate(
     // Declare genvars outside
     genvar x, y;
 
-    alu_tile_noc #(.TILE_X(0), .TILE_Y(0)) t0_0 (
+    alu_tile_noc #() t0_0 (
+        .TILE_X(0), .TILE_Y(0),
         .in_a_n(64'd0),
         .in_b_n(64'd0),
         .in_ctrl_n(16'd0),
@@ -93,7 +94,8 @@ module intermediate(
         .host_out_valid(host_out_valid[0])
     );
 
-    alu_tile_noc #(.TILE_X(1), .TILE_Y(0)) t0_1 (
+    alu_tile_noc t0_1 (
+        .TILE_X(1), .TILE_Y(0),
         .in_a_n(64'd0),
         .in_b_n(64'd0),
         .in_ctrl_n(16'd0),
@@ -128,7 +130,8 @@ module intermediate(
         .host_out_valid(host_out_valid[1])
     );
 
-    alu_tile_noc #(.TILE_X(2), .TILE_Y(0)) t0_2 (
+    alu_tile_noc t0_2 (
+        .TILE_X(2), .TILE_Y(0),
         .in_a_n(64'd0),
         .in_b_n(64'd0),
         .in_ctrl_n(16'd0),
@@ -164,7 +167,8 @@ module intermediate(
     );
 
     // Row 1
-    alu_tile_noc #(.TILE_X(0), .TILE_Y(1)) t1_0 (
+    alu_tile_noc t1_0 (
+        .TILE_X(0), .TILE_Y(1),
         .in_a_n(in_a[idx_of(0,0)]),
         .in_b_n(in_b[idx_of(0,0)]),
         .in_ctrl_n(in_ctrl[idx_of(0,0)]),
@@ -199,7 +203,8 @@ module intermediate(
         .host_out_valid(host_out_valid[3])
     );
 
-    alu_tile_noc #(.TILE_X(1), .TILE_Y(1)) t1_1 (
+    alu_tile_noc t1_1 (
+        .TILE_X(1), .TILE_Y(1),
         .in_a_n(in_a[idx_of(1,0)]),
         .in_b_n(in_b[idx_of(1,0)]),
         .in_ctrl_n(in_ctrl[idx_of(1,0)]),
@@ -234,7 +239,8 @@ module intermediate(
         .host_out_valid(host_out_valid[4])
     );
 
-    alu_tile_noc #(.TILE_X(2), .TILE_Y(1)) t1_2 (
+    alu_tile_noc t1_2 (
+        .TILE_X(2), .TILE_Y(1),
         .in_a_n(in_a[idx_of(2,0)]),
         .in_b_n(in_b[idx_of(2,0)]),
         .in_ctrl_n(in_ctrl[idx_of(2,0)]),
@@ -270,7 +276,8 @@ module intermediate(
     );
 
     // Row 2
-    alu_tile_noc #(.TILE_X(0), .TILE_Y(2)) t2_0 (
+    alu_tile_noc t2_0 (
+        .TILE_X(0), .TILE_Y(2),
         .in_a_n(in_a[idx_of(0,1)]),
         .in_b_n(in_b[idx_of(0,1)]),
         .in_ctrl_n(in_ctrl[idx_of(0,1)]),
@@ -305,7 +312,8 @@ module intermediate(
         .host_out_valid(host_out_valid[6])
     );
 
-    alu_tile_noc #(.TILE_X(1), .TILE_Y(2)) t2_1 (
+    alu_tile_noc t2_1 (
+        .TILE_X(1), .TILE_Y(2),
         .in_a_n(in_a[idx_of(1,1)]),
         .in_b_n(in_b[idx_of(1,1)]),
         .in_ctrl_n(in_ctrl[idx_of(1,1)]),
@@ -340,7 +348,8 @@ module intermediate(
         .host_out_valid(host_out_valid[7])
     );
 
-    alu_tile_noc #(.TILE_X(2), .TILE_Y(2)) t2_2 (
+    alu_tile_noc t2_2 (
+        .TILE_X(2), .TILE_Y(2),
         .in_a_n(in_a[idx_of(2,1)]),
         .in_b_n(in_b[idx_of(2,1)]),
         .in_ctrl_n(in_ctrl[idx_of(2,1)]),

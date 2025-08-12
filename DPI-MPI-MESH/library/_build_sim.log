@@ -1,4 +1,4 @@
-Starting build at Tue 12 Aug 2025 02:14:44 AM IST
+Starting build at Tue 12 Aug 2025 02:49:57 PM IST
 make[1]: Entering directory '/home/kislay/Music/temp/DPI-MPI-MESH/library'
 Elaborating with DPI...
 verilator -cc alu_tile_noc.v calculator.v intermediate.v terminate.v \
@@ -176,153 +176,143 @@ Instance: t0_1, Module: alu_tile_noc
 Instance: term, Module: terminate
 Instance: t0_0, Module: alu_tile_noc
 Instance: int_con, Module: intermediate
-%Warning-WIDTHTRUNC: alu_tile_noc.v:110:22: Operator ASSIGNW expects 2 bits on the Assign RHS, but Assign RHS's VARREF 'TILE_X' generates 32 bits.
+%Warning-WIDTHTRUNC: alu_tile_noc.v:109:22: Operator ASSIGNW expects 2 bits on the Assign RHS, but Assign RHS's VARREF 'TILE_X' generates 8 bits.
                                           : ... note: In instance 'calculator.int_con.t2_2'
-  110 |     wire [1:0] cur_x = TILE_X;
+  109 |     wire [1:0] cur_x = TILE_X;
       |                      ^
                      ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.036
                      ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
-%Warning-WIDTHTRUNC: alu_tile_noc.v:111:22: Operator ASSIGNW expects 2 bits on the Assign RHS, but Assign RHS's VARREF 'TILE_Y' generates 32 bits.
+%Warning-WIDTHTRUNC: alu_tile_noc.v:110:22: Operator ASSIGNW expects 2 bits on the Assign RHS, but Assign RHS's VARREF 'TILE_Y' generates 8 bits.
                                           : ... note: In instance 'calculator.int_con.t2_2'
-  111 |     wire [1:0] cur_y = TILE_Y;
+  110 |     wire [1:0] cur_y = TILE_Y;
       |                      ^
-%Warning-WIDTHTRUNC: intermediate.v:436:27: Operator FUNCREF 'make_ctrl' expects 2 bits on the Function Argument, but Function Argument's MODDIV generates 32 or 4 bits.
+%Warning-WIDTHTRUNC: intermediate.v:445:27: Operator FUNCREF 'make_ctrl' expects 2 bits on the Function Argument, but Function Argument's MODDIV generates 32 or 4 bits.
                                           : ... note: In instance 'calculator.int_con'
-  436 |             tmp_ctrl[0] = make_ctrl(1'b0, (mode % 3), (mode / 3), mode);
+  445 |             tmp_ctrl[0] = make_ctrl(1'b0, (mode % 3), (mode / 3), mode);
       |                           ^~~~~~~~~
-%Warning-WIDTHTRUNC: intermediate.v:436:27: Operator FUNCREF 'make_ctrl' expects 2 bits on the Function Argument, but Function Argument's DIV generates 32 or 4 bits.
+%Warning-WIDTHTRUNC: intermediate.v:445:27: Operator FUNCREF 'make_ctrl' expects 2 bits on the Function Argument, but Function Argument's DIV generates 32 or 4 bits.
                                           : ... note: In instance 'calculator.int_con'
-  436 |             tmp_ctrl[0] = make_ctrl(1'b0, (mode % 3), (mode / 3), mode);
+  445 |             tmp_ctrl[0] = make_ctrl(1'b0, (mode % 3), (mode / 3), mode);
       |                           ^~~~~~~~~
-%Warning-WIDTHEXPAND: intermediate.v:479:33: Operator EQ expects 32 bits on the RHS, but RHS's VARREF 'dx' generates 2 bits.
+%Warning-WIDTHEXPAND: intermediate.v:488:33: Operator EQ expects 32 bits on the RHS, but RHS's VARREF 'dx' generates 2 bits.
                                            : ... note: In instance 'calculator.int_con'
-  479 |                         if ((tx == dx) && (ty == dy)) begin
+  488 |                         if ((tx == dx) && (ty == dy)) begin
       |                                 ^~
                       ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.036
                       ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
-%Warning-WIDTHEXPAND: intermediate.v:479:47: Operator EQ expects 32 bits on the RHS, but RHS's VARREF 'dy' generates 2 bits.
+%Warning-WIDTHEXPAND: intermediate.v:488:47: Operator EQ expects 32 bits on the RHS, but RHS's VARREF 'dy' generates 2 bits.
                                            : ... note: In instance 'calculator.int_con'
-  479 |                         if ((tx == dx) && (ty == dy)) begin
+  488 |                         if ((tx == dx) && (ty == dy)) begin
       |                                               ^~
-%Warning-UNSIGNED: alu_tile_noc.v:173:40: Comparison is constant due to unsigned arithmetic
-                                        : ... note: In instance 'calculator.int_con.t2_0'
-  173 |                     end else if (cur_x > sel_dst_x) begin
-      |                                        ^
-                   ... For warning description see https://verilator.org/warn/UNSIGNED?v=5.036
-                   ... Use "/* verilator lint_off UNSIGNED */" and lint_on around source to disable this message.
-%Warning-UNSIGNED: alu_tile_noc.v:167:40: Comparison is constant due to unsigned arithmetic
-                                        : ... note: In instance 'calculator.int_con.t0_2'
-  167 |                     end else if (cur_y > sel_dst_y) begin
-      |                                        ^
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.c' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.c' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
                 ... For warning description see https://verilator.org/warn/LATCH?v=5.036
                 ... Use "/* verilator lint_off LATCH */" and lint_on around source to disable this message.
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.r' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.r' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.dx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.dx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.dy' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.dy' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.md' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.md' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.tx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.tx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.ty' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.ty' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk10.nidx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk10.nidx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk11.nidx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk11.nidx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk5.local_res' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk5.local_res' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk6.nidx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk6.nidx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk7.nidx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk7.nidx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk8.nidx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk8.nidx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk9.nidx' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.unnamedblk2.unnamedblk3.unnamedblk4.unnamedblk9.nidx' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.in_a' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.in_a' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.in_b' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.in_b' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.in_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.in_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: intermediate.v:405:5: Latch inferred for signal 'calculator.int_con.in_valid' (not all control paths of combinational always assign a value)
+%Warning-LATCH: intermediate.v:414:5: Latch inferred for signal 'calculator.int_con.in_valid' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  405 |     always @(*) begin
+  414 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t0_0.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t0_0.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t0_1.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t0_1.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t0_2.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t0_2.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t1_0.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t1_0.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t1_1.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t1_1.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t1_2.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t1_2.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t2_0.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t2_0.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t2_1.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t2_1.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
-%Warning-LATCH: alu_tile_noc.v:135:5: Latch inferred for signal 'calculator.int_con.t2_2.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
+%Warning-LATCH: alu_tile_noc.v:134:5: Latch inferred for signal 'calculator.int_con.t2_2.unnamedblk1.resp_ctrl' (not all control paths of combinational always assign a value)
                                     : ... Suggest use of always_latch for intentional latches
-  135 |     always @(*) begin
+  134 |     always @(*) begin
       |     ^~~~~~
 %Warning-UNOPTFLAT: intermediate.v:23:16: Signal unoptimizable: Circular combinational logic: 'calculator.int_con.in_a'
    23 |     reg [63:0] in_a  [0:8];
@@ -330,32 +320,32 @@ Instance: int_con, Module: intermediate
                     ... For warning description see https://verilator.org/warn/UNOPTFLAT?v=5.036
                     ... Use "/* verilator lint_off UNOPTFLAT */" and lint_on around source to disable this message.
                     intermediate.v:23:16:      Example path: calculator.int_con.in_a
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
                     intermediate.v:23:16:      Example path: calculator.int_con.in_a
 %Warning-UNOPTFLAT: intermediate.v:24:16: Signal unoptimizable: Circular combinational logic: 'calculator.int_con.in_b'
    24 |     reg [63:0] in_b  [0:8];
       |                ^~~~
                     intermediate.v:24:16:      Example path: calculator.int_con.in_b
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
                     intermediate.v:23:16:      Example path: calculator.int_con.in_a
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
 %Warning-UNOPTFLAT: intermediate.v:25:16: Signal unoptimizable: Circular combinational logic: 'calculator.int_con.in_ctrl'
    25 |     reg [15:0] in_ctrl [0:8];
       |                ^~~~~~~
                     intermediate.v:25:16:      Example path: calculator.int_con.in_ctrl
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
                     intermediate.v:23:16:      Example path: calculator.int_con.in_a
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
 %Warning-UNOPTFLAT: intermediate.v:26:16: Signal unoptimizable: Circular combinational logic: 'calculator.int_con.in_valid'
    26 |     reg        in_valid[0:8];
       |                ^~~~~~~~
                     intermediate.v:26:16:      Example path: calculator.int_con.in_valid
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
                     intermediate.v:23:16:      Example path: calculator.int_con.in_a
-                    intermediate.v:405:5:      Example path: ALWAYS
+                    intermediate.v:414:5:      Example path: ALWAYS
 - V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-2-g9876d27ad
 - Verilator: Built from 0.126 MB sources in 5 modules, into 1.816 MB in 11 C++ files needing 0.000 MB
-- Verilator: Walltime 0.152 s (elab=0.004, cvt=0.125, bld=0.000); cpu 0.152 s on 1 threads; alloced 35.461 MB
+- Verilator: Walltime 0.407 s (elab=0.014, cvt=0.316, bld=0.000); cpu 0.384 s on 1 threads; alloced 35.465 MB
 Building the simulation binary...
 make[2]: Entering directory '/home/kislay/Music/temp/DPI-MPI-MESH/library/obj_dir'
 ccache g++  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2 -Wall   -Os  -c -o sim.o ../sim.cpp
@@ -408,4 +398,4 @@ Running simulation...
 [test 2] a=7 b=2 mode=7 (SLL) valid=1 result=28
 [test 2] a=7 b=2 mode=8 (SRL) valid=1 result=1
 make[1]: Leaving directory '/home/kislay/Music/temp/DPI-MPI-MESH/library'
-Build finished at Tue 12 Aug 2025 02:14:46 AM IST
+Build finished at Tue 12 Aug 2025 02:50:02 PM IST
