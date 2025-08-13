@@ -1,0 +1,310 @@
+// Verilated -*- C++ -*-
+// DESCRIPTION: Verilator output: Design internal header
+// See Vcalculator.h for the primary calling header
+
+#ifndef VERILATED_VCALCULATOR___024ROOT_H_
+#define VERILATED_VCALCULATOR___024ROOT_H_  // guard
+
+#include "verilated.h"
+
+
+class Vcalculator__Syms;
+
+class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public VerilatedModule {
+  public:
+
+    // DESIGN SPECIFIC STATE
+    // Anonymous structures to workaround compiler member-count bugs
+    struct {
+        VL_IN8(mode,3,0);
+        VL_OUT8(valid,0,0);
+        CData/*0:0*/ calculator__DOT__int_con__DOT__valid_r;
+        CData/*0:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__r;
+        CData/*1:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__dx;
+        CData/*1:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__dy;
+        CData/*3:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__md;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_he59de354__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__1;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_he492c98f__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__2;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__3;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h114e1fd4__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__4;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h3b8a160c__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__5;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_hf4e9d157__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__6;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h063e8498__0;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_h78e7d8a0__7;
+        CData/*0:0*/ calculator__DOT__int_con__DOT____Vlvbound_hc22d5ed4__0;
+        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__192__dx;
+        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__192__dy;
+        CData/*3:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__192__md;
+        CData/*0:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__193__resp;
+        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__193__dx;
+        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__193__dy;
+        CData/*3:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__193__md;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__host_out_valid;
+    };
+    struct {
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__host_out_valid;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_valid_n;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_valid_e;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_valid_s;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_valid_w;
+        CData/*0:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__host_out_valid;
+        CData/*0:0*/ __VstlDidInit;
+        CData/*0:0*/ __VstlFirstIteration;
+        CData/*0:0*/ __VicoDidInit;
+        CData/*0:0*/ __VicoFirstIteration;
+        CData/*0:0*/ __VactDidInit;
+        CData/*0:0*/ __VactContinue;
+        SData/*15:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__c;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_hd281a793__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h57dc3b27__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h571a9c64__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_hd281a793__1;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h4c0e94a7__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h9222e5cf__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h667fa51c__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h24ff5b5b__0;
+        SData/*15:0*/ calculator__DOT__int_con__DOT____Vlvbound_h1676912c__0;
+        SData/*15:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__192__Vfuncout;
+        SData/*15:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__193__Vfuncout;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__any;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__idx_h;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__some;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__tx;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__ty;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk10__DOT__nidx;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk11__DOT__nidx;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk6__DOT__nidx;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk7__DOT__nidx;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk8__DOT__nidx;
+        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk9__DOT__nidx;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_ctrl_n;
+    };
+    struct {
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_ctrl_w;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_ctrl_n;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_ctrl_e;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_ctrl_s;
+        IData/*31:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_ctrl_w;
+        IData/*31:0*/ __VactIterCount;
+        VL_IN64(a,63,0);
+        VL_IN64(b,63,0);
+        VL_OUT64(result,63,0);
+        QData/*63:0*/ calculator__DOT__int_con__DOT__result_r;
+        QData/*63:0*/ calculator__DOT__int_con__DOT__unnamedblk2__DOT__unnamedblk3__DOT__unnamedblk4__DOT__unnamedblk5__DOT__local_res;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h9be8a64b__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_hcc4b29d2__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_he6d2591f__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h37615ea6__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_he88db75c__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h392bfce1__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h9be8a64b__1;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_hcc4b29d2__1;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_hf3418f9f__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h33f03526__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_ha585dbe7__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h8634eb5e__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h17e69f34__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h485504a9__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h4a757273__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h1ac03dea__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h66b3d563__0;
+        QData/*63:0*/ calculator__DOT__int_con__DOT____Vlvbound_h86262c3c__0;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_0__DOT__dpi_tile__194__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_1__DOT__dpi_tile__195__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t0_2__DOT__dpi_tile__196__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_b_n;
+    };
+    struct {
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_0__DOT__dpi_tile__197__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_1__DOT__dpi_tile__198__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t1_2__DOT__dpi_tile__199__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_0__DOT__dpi_tile__200__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_1__DOT__dpi_tile__201__host_out_a;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_a_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_b_n;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_a_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_b_e;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_a_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_b_s;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_a_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__out_b_w;
+        QData/*63:0*/ __Vtask_calculator__DOT__int_con__DOT__t2_2__DOT__dpi_tile__202__host_out_a;
+        VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__in_a;
+        VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__in_b;
+        VlUnpacked<SData/*15:0*/, 9> calculator__DOT__int_con__DOT__in_ctrl;
+        VlUnpacked<CData/*0:0*/, 9> calculator__DOT__int_con__DOT__in_valid;
+        VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__unnamedblk2__DOT__tmp_a;
+        VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__unnamedblk2__DOT__tmp_b;
+        VlUnpacked<SData/*15:0*/, 9> calculator__DOT__int_con__DOT__unnamedblk2__DOT__tmp_ctrl;
+        VlUnpacked<CData/*0:0*/, 9> calculator__DOT__int_con__DOT__unnamedblk2__DOT__tmp_valid;
+        VlUnpacked<QData/*63:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_a__0;
+        VlUnpacked<QData/*63:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_b__0;
+        VlUnpacked<SData/*15:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_ctrl__0;
+        VlUnpacked<CData/*0:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_valid__0;
+    };
+    struct {
+        VlUnpacked<QData/*63:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_a__1;
+        VlUnpacked<QData/*63:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_b__1;
+        VlUnpacked<SData/*15:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_ctrl__1;
+        VlUnpacked<CData/*0:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_valid__1;
+        VlUnpacked<QData/*63:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_a__2;
+        VlUnpacked<QData/*63:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_b__2;
+        VlUnpacked<SData/*15:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_ctrl__2;
+        VlUnpacked<CData/*0:0*/, 9> __Vtrigprevexpr___TOP__calculator__DOT__int_con__DOT__in_valid__2;
+    };
+    VlTriggerVec<5> __VstlTriggered;
+    VlTriggerVec<5> __VicoTriggered;
+    VlTriggerVec<4> __VactTriggered;
+    VlTriggerVec<4> __VnbaTriggered;
+
+    // INTERNAL VARIABLES
+    Vcalculator__Syms* const vlSymsp;
+
+    // CONSTRUCTORS
+    Vcalculator___024root(Vcalculator__Syms* symsp, const char* v__name);
+    ~Vcalculator___024root();
+    VL_UNCOPYABLE(Vcalculator___024root);
+
+    // INTERNAL METHODS
+    void __Vconfigure(bool first);
+};
+
+
+#endif  // guard

@@ -59,7 +59,7 @@ module intermediate(
     genvar x, y;
 
     alu_tile_noc #() t0_0 (
-        .TILE_X(0), .TILE_Y(0)
+        .TILE_X(0), .TILE_Y(0),
         .in_a_n(64'd0),
         .in_b_n(64'd0),
         .in_ctrl_n(16'd0),

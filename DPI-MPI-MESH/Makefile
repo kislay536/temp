@@ -1,9 +1,19 @@
-SRC_FILES = alu_tile_noc.v  calculator.v intermediate.v
+SRC_FILES = alu_tile_noc.v calculator.v intermediate.v terminate.v
 OBJ_DIR = obj_dir
+obj_dir_lib1 ?= obj_dir1
+obj_dir_lib2 ?= obj_dir2
+obj_dir_lib3 ?= obj_dir3
+obj_dir_lib4 ?= obj_dir4
+obj_dir_lib5 ?= obj_dir5
+obj_dir_lib6 ?= obj_dir6
+obj_dir_lib7 ?= obj_dir7
+obj_dir_lib8 ?= obj_dir8
+obj_dir_lib9 ?= obj_dir9
 TOP = Vcalculator
 top_mod ?= calculator
 DPI_SOURCES =
 CXX_SOURCES = sim.cpp $(DPI_SOURCES)
+CXX_MPI_SOURCES = dpi-mpi-sim.cpp metro_mpi.cpp
 CLEAN = _build_sim.log adjacency.dot calculator.html  calculator.xml hierarchy.dot 
 
 
@@ -55,3 +65,30 @@ xml:
 python:
 	@python3 _vis.py
 	@python3 _metro_mpi.py
+
+mpi:
+	@{ \
+		echo "Starting build at $$(date)"; \
+		(make elaborate_mpi build_mpi simulate_mpi) > _build_sim.log 2>&1; \
+		echo "Build finished at $$(date)"; \
+	}
+
+# getting errors for defining functions multiple time when using metro_mpi.cpp so moved all of them to the main cpp file
+
+elaborate_mpi:clean 
+	@echo "== == == 1. Elaborating with MPI-DPI..."
+	verilator -cc $(SRC_FILES) \
+		--exe $(CXX_MPI_SOURCES) \
+		--Mdir $(OBJ_DIR) \
+		--top-module $(top_mod) \
+		-CFLAGS "-O2 -Wall" \
+		-LDFLAGS "-lstdc++" \
+		--Wno-fatal --timing
+
+build_mpi:
+	@echo "== == == 2. Building the simulation binary..."
+	make CXX=mpic++ LINK=mpic++ -C $(OBJ_DIR) -f $(TOP).mk $(TOP)
+
+simulate_mpi:
+	@echo "== == == 3. Running simulation..."
+	@mpirun -np 1 xterm -hold -e ./$(OBJ_DIR)/Vcalculator : -np 1 xterm -hold -e ./$(obj_dir_lib1)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib2)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib3)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib4)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib5)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib6)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib7)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib8)/Valu_tile_noc : -np 1 xterm -hold -e ./$(obj_dir_lib9)/Valu_tile_noc 

@@ -1,21 +1,3 @@
 digraph G {
-  "$root" -> "$root.int_con";
-  "$root.int_con" -> "$root.int_con.t0_0";
-  "$root.int_con.t0_0" -> "$root.int_con.t0_0.term";
-  "$root.int_con" -> "$root.int_con.t0_1";
-  "$root.int_con.t0_1" -> "$root.int_con.t0_1.term";
-  "$root.int_con" -> "$root.int_con.t0_2";
-  "$root.int_con.t0_2" -> "$root.int_con.t0_2.term";
-  "$root.int_con" -> "$root.int_con.t1_0";
-  "$root.int_con.t1_0" -> "$root.int_con.t1_0.term";
-  "$root.int_con" -> "$root.int_con.t1_1";
-  "$root.int_con.t1_1" -> "$root.int_con.t1_1.term";
-  "$root.int_con" -> "$root.int_con.t1_2";
-  "$root.int_con.t1_2" -> "$root.int_con.t1_2.term";
-  "$root.int_con" -> "$root.int_con.t2_0";
-  "$root.int_con.t2_0" -> "$root.int_con.t2_0.term";
-  "$root.int_con" -> "$root.int_con.t2_1";
-  "$root.int_con.t2_1" -> "$root.int_con.t2_1.term";
-  "$root.int_con" -> "$root.int_con.t2_2";
-  "$root.int_con.t2_2" -> "$root.int_con.t2_2.term";
+  "$root" -> "$root.term";
 }
