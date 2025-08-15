@@ -35,7 +35,7 @@ TOP = Vcalculator
 top_mod ?= calculator
 DPI_SOURCES =
 CXX_SOURCES = sim.cpp $(DPI_SOURCES)
-REMOVE = _build_sim.log adjacency.dot build_lib_library.log build_library.log hierarchy.dot tb_calculator.vcd calculator.html  calculator.xml _partition_ports_data.txt module_hierarchy.svg module_hierarchy.html module_hierarchy.html tile_mapped_graph.html _wires.txt _dtype_map.txt mpi-lib-tile0.cpp mpi-lib-tile1.cpp mpi-lib-tile2.cpp mpi-lib-tile3.cpp mpi-lib-tile4.cpp mpi-lib-tile5.cpp mpi-lib-tile6.cpp mpi-lib-tile7.cpp mpi-lib-tile8.cpp mpi-lib-tile9.cpp
+REMOVE = _build_sim.log adjacency.dot build_lib_library.log build_library.log hierarchy.dot tb_calculator.vcd calculator.html  calculator.xml _partition_ports_data.txt module_hierarchy.svg module_hierarchy.html module_hierarchy.html tile_mapped_graph.html _wires.txt _dtype_map.txt mpi-lib-tile0.cpp mpi-lib-tile1.cpp mpi-lib-tile2.cpp mpi-lib-tile3.cpp mpi-lib-tile4.cpp mpi-lib-tile5.cpp mpi-lib-tile6.cpp mpi-lib-tile7.cpp mpi-lib-tile8.cpp mpi-lib-tile9.cpp _elaborate.log
 
 copy_files:
 	@echo "== == == 3. Copying mpi-lib-add.cpp file..."
@@ -184,7 +184,7 @@ verilate: clean
 
 
 
-elaborate:
+elaborate_design:
 	@echo "Elaborating with DPI..."
 	verilator -cc $(SRC_FILES) \
 		--exe $(CXX_SOURCES) \
@@ -205,9 +205,16 @@ simulate:
 piton:
 	@{ \
 		echo "Starting build at $$(date)"; \
-		make elaborate build simulate; \
+		make elaborate_design build simulate; \
 		echo "Build finished at $$(date)"; \
 	} 2>&1 | tee _build_sim.log
+
+elaborate:
+	@{ \
+		echo "Starting build at $$(date)"; \
+		make elaborate_design; \
+		echo "Build finished at $$(date)"; \
+	} 2>&1 | tee _elaborate.log
 
 clean: clean_lib
 	@echo "Cleaning up..."

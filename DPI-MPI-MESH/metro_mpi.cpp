@@ -295,7 +295,7 @@ extern void initialize()
 extern void mpi_send_response(mpi_all_resp message, int dest, int myRank, int tag)
 {
     int message_len = 1;
-    cout << "Sending Message" << endl;
+    cout << "Sending Response" << endl;
     // MPI_Send( const void* buf , MPI_Count count , MPI_Datatype datatype , int dest , int tag , MPI_Comm comm);
     MPI_Send(&message, message_len, mpi_all_resp_common, dest, tag, MPI_COMM_WORLD);
 }
@@ -371,7 +371,7 @@ void mpi_send_request(mpi_all_req message, int dest, int rank, int flag)
 
 mpi_all_req mpi_receive_request(int origin, int flag)
 {
-    // cout << "3. Received Request!!!" << endl;
+    cout << "3. Received Request!!!" << endl;
     int message_len = 1;
     MPI_Status status;
     mpi_all_req message;

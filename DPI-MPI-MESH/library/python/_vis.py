@@ -74,8 +74,8 @@ def export_interactive_html(G, html_file="module_hierarchy.html"):
 
 
 if __name__ == "__main__":
-    xml_path = "xml/calculator.xml"  # path to the verilator generated chipset.xml path
+    xml_path = "../xml/calculator.xml"  # path to the verilator generated chipset.xml path
     G = build_hierarchy_graph(xml_path)
     # visualize_graph(G, output_file="manycore1x1.svg")
-    export_interactive_html(G, "xml/calculator.html")
+    export_interactive_html(G, "./calculator.html")
 

@@ -80,16 +80,19 @@ void dpi_alu_tile_noc_eval(unsigned int TILE_X, unsigned int TILE_Y, unsigned lo
 void mpi_packet_serve(int flag)
 {
     cout << "==== ==== alu_tile_noc Ready to serve any requests!!! ==== ====" << endl;
-    mpi_all_req req_input;
+    mpi_all_req req_input = {0};
+    mpi_all_req empty_req = {0};
     mpi_all_resp resp_output;
 
     req_input = mpi_receive_request(0, flag);
 
-    dpi_alu_tile_noc_eval(req_input.TILE_X, req_input.TILE_Y, req_input.in_a_n, req_input.in_b_n, req_input.in_ctrl_n, req_input.in_valid_n, req_input.in_a_e, req_input.in_b_e, req_input.in_ctrl_e, req_input.in_valid_e, req_input.in_a_s, req_input.in_b_s, req_input.in_ctrl_s, req_input.in_valid_s, req_input.in_a_w, req_input.in_b_w, req_input.in_ctrl_w, req_input.in_valid_w, req_input.host_in_a, req_input.host_in_b, req_input.host_in_ctrl, req_input.host_in_valid, &resp_output.out_a_n, &resp_output.out_b_n, &resp_output.out_ctrl_n, &resp_output.out_valid_n, &resp_output.out_a_e, &resp_output.out_b_e, &resp_output.out_ctrl_e, &resp_output.out_valid_e, &resp_output.out_a_s, &resp_output.out_b_s, &resp_output.out_ctrl_s, &resp_output.out_valid_s, &resp_output.out_a_w, &resp_output.out_b_w, &resp_output.out_ctrl_w, &resp_output.out_valid_w, &resp_output.host_out_a, &resp_output.host_out_valid);
+    if (memcmp(&req_input, &empty_req, sizeof(req_input)) != 0)
+    {
+        dpi_alu_tile_noc_eval(req_input.TILE_X, req_input.TILE_Y, req_input.in_a_n, req_input.in_b_n, req_input.in_ctrl_n, req_input.in_valid_n, req_input.in_a_e, req_input.in_b_e, req_input.in_ctrl_e, req_input.in_valid_e, req_input.in_a_s, req_input.in_b_s, req_input.in_ctrl_s, req_input.in_valid_s, req_input.in_a_w, req_input.in_b_w, req_input.in_ctrl_w, req_input.in_valid_w, req_input.host_in_a, req_input.host_in_b, req_input.host_in_ctrl, req_input.host_in_valid, &resp_output.out_a_n, &resp_output.out_b_n, &resp_output.out_ctrl_n, &resp_output.out_valid_n, &resp_output.out_a_e, &resp_output.out_b_e, &resp_output.out_ctrl_e, &resp_output.out_valid_e, &resp_output.out_a_s, &resp_output.out_b_s, &resp_output.out_ctrl_s, &resp_output.out_valid_s, &resp_output.out_a_w, &resp_output.out_b_w, &resp_output.out_ctrl_w, &resp_output.out_valid_w, &resp_output.host_out_a, &resp_output.host_out_valid);
 
-    mpi_send_response(resp_output, 0, 1, flag);
+        mpi_send_response(resp_output, 0, 1, flag);
+    }
 }
-
 
 int main()
 {
@@ -127,12 +130,12 @@ int main()
         }
 
         MPI_Iprobe(0, tile0, MPI_COMM_WORLD, &req_available, &status);
-        std::cout << "==== ==== alu_tile_noc Waiting for Requests!!! ==== ====" << std::endl;
+        // std::cout << "==== ==== alu_tile_noc Waiting for Requests!!! ==== ====" << std::endl;
         if (req_available)
             mpi_packet_serve(tile0); // serve other requests
     }
     // cout << "About to finalise from library!!!" << endl;
-    std::cout << "tile "<< rank <<" ran for " << count << " cycles" << endl;
+    std::cout << "tile " << rank << " ran for " << count << " cycles" << endl;
     finalize();
     exit(0);
 }

@@ -9,6 +9,7 @@ obj_dir_lib6 ?= obj_dir6
 obj_dir_lib7 ?= obj_dir7
 obj_dir_lib8 ?= obj_dir8
 obj_dir_lib9 ?= obj_dir9
+obj_dir_lib = $(obj_dir_lib1) $(obj_dir_lib2) $(obj_dir_lib3) $(obj_dir_lib4) $(obj_dir_lib5) $(obj_dir_lib6) $(obj_dir_lib7) $(obj_dir_lib8) $(obj_dir_lib9)
 TOP = Vcalculator
 top_mod ?= calculator
 DPI_SOURCES =
@@ -51,6 +52,16 @@ piton:
 clean:
 	@echo "Cleaning up..."
 	@rm -rf $(OBJ_DIR)
+	@rm -rf $(obj_dir_lib)
+	@if [ -d xml ]; then rm -rf xml; fi
+	@for f in $(CLEAN); do \
+		if [ -e "$$f" ]; then rm "$$f"; fi; \
+	done
+	@clear
+
+clean_mpi:
+	@echo "Cleaning up..."
+	@rm -rf $(OBJ_DIR)
 	@if [ -d xml ]; then rm -rf xml; fi
 	@for f in $(CLEAN); do \
 		if [ -e "$$f" ]; then rm "$$f"; fi; \
@@ -75,7 +86,7 @@ mpi:
 
 # getting errors for defining functions multiple time when using metro_mpi.cpp so moved all of them to the main cpp file
 
-elaborate_mpi:clean 
+elaborate_mpi:clean_mpi 
 	@echo "== == == 1. Elaborating with MPI-DPI..."
 	verilator -cc $(SRC_FILES) \
 		--exe $(CXX_MPI_SOURCES) \

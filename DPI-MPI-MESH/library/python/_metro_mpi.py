@@ -423,7 +423,7 @@ def determine_process(partition_data, parent_module,partition_instance_list):
     return partition_data
 
 if __name__ == "__main__":
-    xml_path = "xml/calculator.xml"  
+    xml_path = "../xml/calculator.xml"  
     design_Graph = build_hierarchy_graph(xml_path)
     dtype_map = extract_dtype_map(xml_path)
     Hashed_design_graph = merkle_hash_all(design_Graph)

@@ -112,7 +112,7 @@ void mpi_request(unsigned int TILE_X, unsigned int TILE_Y, unsigned long long in
     else if(TILE_X == 2 && TILE_Y == 1) {dest = 8; req_flag = tile7; }
     else if(TILE_X == 2 && TILE_Y == 2) {dest = 9; req_flag = tile8; }
 
-    cout << "2. Sending the operands from mpi-dpi-sim.cpp to mpi-lib-mul.cpp" << endl;
+    cout << "2. Sending the operands from dpi-mpi-sim.cpp to mpi-lib-tile.cpp and dest is "<< dest << endl;
     mpi_send_request(message, dest, 0, req_flag); // have to figure out
 }
 

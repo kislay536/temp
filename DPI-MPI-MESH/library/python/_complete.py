@@ -124,4 +124,4 @@ def render_html_graph(xml_path, top_name="intermediate", output="graph.html"):
     net.write_html(output)
     print(f"Graph saved to {output}")
 
-render_html_graph("xml/calculator.xml", top_name="intermediate", output="tile_mapped_graph.html")
+render_html_graph("../xml/calculator.xml", top_name="intermediate", output="tile_mapped_graph.html")

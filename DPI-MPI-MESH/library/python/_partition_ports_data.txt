@@ -1,0 +1,36 @@
+Instance: t0_0
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t0_0 <-> ???    with_whom_is_it_communicating
+
+Instance: t0_1
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t0_1 <-> ???    with_whom_is_it_communicating
+
+Instance: t0_2
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t0_2 <-> ???    with_whom_is_it_communicating
+
+Instance: t1_0
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t1_0 <-> ???    with_whom_is_it_communicating
+
+Instance: t1_1
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t1_1 <-> ???    with_whom_is_it_communicating
+
+Instance: t1_2
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t1_2 <-> ???    with_whom_is_it_communicating
+
+Instance: t2_0
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t2_0 <-> ???    with_whom_is_it_communicating
+
+Instance: t2_1
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t2_1 <-> ???    with_whom_is_it_communicating
+
+Instance: t2_2
+---------------
+Port Name                 Direction  Width   IsActive   type    Chip_Side_Connection           t2_2 <-> ???    with_whom_is_it_communicating
+

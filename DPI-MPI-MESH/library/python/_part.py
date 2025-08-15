@@ -151,7 +151,7 @@ def find_highest_level_repeats(G, node_hash):
 
 
 if __name__ == "__main__":
-    xml_path = "xml/calculator.xml" 
+    xml_path = "../xml/calculator.xml" 
     G = build_hierarchy_graph(xml_path)
     H=merkle_hash_all(G)
     find_highest_level_repeats(G, H)
