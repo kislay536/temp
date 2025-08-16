@@ -29,6 +29,7 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator VL_NOT_FINAL : public VerilatedMo
     // PORTS
     // The application code writes and reads these signals to
     // propagate new values into/out from the Verilated model.
+    VL_IN8(&clk,0,0);
     VL_IN8(&mode,3,0);
     VL_OUT8(&valid,0,0);
     VL_IN64(&a,63,0);

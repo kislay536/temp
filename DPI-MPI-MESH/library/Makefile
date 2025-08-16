@@ -190,9 +190,12 @@ elaborate_design:
 		--exe $(CXX_SOURCES) \
 		--Mdir $(OBJ_DIR) \
 		--top-module $(top_mod) \
-		-CFLAGS "-O2 -Wall $(MULTIPLIER_HEADERS)" \
+		-CFLAGS "-O2 $(MULTIPLIER_HEADERS)" \
 		-LDFLAGS "$(MULTIPLIER_LIB) -lstdc++" \
-		--Wno-fatal --timing --trace
+		--timing --trace --Wall --Wno-fatal --Wno-UNUSED --Wno-lint -Wno-UNOPTFLAT --mmpi-o1
+		
+# --mmpi-o1
+
 
 build:
 	@echo "Building the simulation binary..."
