@@ -70,9 +70,9 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public Verilate
         CData/*0:0*/ calculator__DOT__int_con__DOT__t2_1__DOT__am_dest;
         CData/*0:0*/ calculator__DOT__int_con__DOT__t2_2__DOT__sel_valid;
         CData/*0:0*/ calculator__DOT__int_con__DOT__t2_2__DOT__am_dest;
-        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__64__dx;
-        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__64__dy;
-        CData/*3:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__64__md;
+        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__0__dx;
+        CData/*1:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__0__dy;
+        CData/*3:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__0__md;
         CData/*0:0*/ __VstlFirstIteration;
         CData/*0:0*/ __VicoFirstIteration;
         CData/*0:0*/ __Vtrigprevexpr___TOP__clk__0;
@@ -127,9 +127,7 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public Verilate
         SData/*15:0*/ calculator__DOT__int_con__DOT__t2_1__DOT__unnamedblk1__DOT__resp_ctrl;
         SData/*15:0*/ calculator__DOT__int_con__DOT__t2_2__DOT__sel_ctrl;
         SData/*15:0*/ calculator__DOT__int_con__DOT__t2_2__DOT__unnamedblk1__DOT__resp_ctrl;
-        SData/*15:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__64__Vfuncout;
-        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk4__DOT__i;
-        IData/*31:0*/ calculator__DOT__int_con__DOT__unnamedblk5__DOT__i;
+        SData/*15:0*/ __Vfunc_calculator__DOT__int_con__DOT__make_ctrl__0__Vfuncout;
         IData/*31:0*/ __VactIterCount;
         VL_IN64(a,63,0);
         VL_IN64(b,63,0);
@@ -146,10 +144,10 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public Verilate
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_1__out_b_e;
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_1__out_a_e;
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_2__out_b_w;
-    };
-    struct {
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_2__out_a_w;
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_2__out_b_s;
+    };
+    struct {
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_2__out_a_s;
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_2__out_b_e;
         QData/*63:0*/ calculator__DOT__int_con__DOT____Vcellout__t0_2__out_a_e;
@@ -212,10 +210,10 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public Verilate
         QData/*63:0*/ calculator__DOT__int_con__DOT__t1_1__DOT__sel_a;
         QData/*63:0*/ calculator__DOT__int_con__DOT__t1_1__DOT__sel_b;
         QData/*63:0*/ calculator__DOT__int_con__DOT__t1_1__DOT__op_result;
-    };
-    struct {
         QData/*63:0*/ calculator__DOT__int_con__DOT__t1_2__DOT__sel_a;
         QData/*63:0*/ calculator__DOT__int_con__DOT__t1_2__DOT__sel_b;
+    };
+    struct {
         QData/*63:0*/ calculator__DOT__int_con__DOT__t1_2__DOT__op_result;
         QData/*63:0*/ calculator__DOT__int_con__DOT__t2_0__DOT__sel_a;
         QData/*63:0*/ calculator__DOT__int_con__DOT__t2_0__DOT__sel_b;
@@ -278,10 +276,10 @@ class alignas(VL_CACHE_LINE_BYTES) Vcalculator___024root final : public Verilate
         VlUnpacked<CData/*0:0*/, 9> calculator__DOT__int_con__DOT__next_in_valid_s;
         VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__next_in_a_w;
         VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__next_in_b_w;
-    };
-    struct {
         VlUnpacked<SData/*15:0*/, 9> calculator__DOT__int_con__DOT__next_in_ctrl_w;
         VlUnpacked<CData/*0:0*/, 9> calculator__DOT__int_con__DOT__next_in_valid_w;
+    };
+    struct {
         VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__next_host_in_a;
         VlUnpacked<QData/*63:0*/, 9> calculator__DOT__int_con__DOT__next_host_in_b;
         VlUnpacked<SData/*15:0*/, 9> calculator__DOT__int_con__DOT__next_host_in_ctrl;

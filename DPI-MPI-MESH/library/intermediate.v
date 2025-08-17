@@ -52,34 +52,207 @@ module intermediate(
     // --- Next-State Logic (Combinational) ---
     always @(*) begin
         // By default, the next state of the links is determined by the tile outputs
-        for (integer y = 0; y < 3; y = y + 1) begin
-            for (integer x = 0; x < 3; x = x + 1) begin
-                next_in_a_n[idx(x,y)]     = (y > 0) ? out_a_s[idx(x,y-1)] : 64'd0;
-                next_in_b_n[idx(x,y)]     = (y > 0) ? out_b_s[idx(x,y-1)] : 64'd0;
-                next_in_ctrl_n[idx(x,y)]  = (y > 0) ? out_ctrl_s[idx(x,y-1)] : 16'd0;
-                next_in_valid_n[idx(x,y)] = (y > 0) ? out_valid_s[idx(x,y-1)] : 1'b0;
 
-                next_in_a_w[idx(x,y)]     = (x > 0) ? out_a_e[idx(x-1,y)] : 64'd0;
-                next_in_b_w[idx(x,y)]     = (x > 0) ? out_b_e[idx(x-1,y)] : 64'd0;
-                next_in_ctrl_w[idx(x,y)]  = (x > 0) ? out_ctrl_e[idx(x-1,y)] : 16'd0;
-                next_in_valid_w[idx(x,y)] = (x > 0) ? out_valid_e[idx(x-1,y)] : 1'b0;
+        // (x=0, y=0) -> idx=0
+        next_in_a_n[0]     = 64'd0;
+        next_in_b_n[0]     = 64'd0;
+        next_in_ctrl_n[0]  = 16'd0;
+        next_in_valid_n[0] = 1'b0;
 
-                next_in_a_s[idx(x,y)]     = (y < 2) ? out_a_n[idx(x,y+1)] : 64'd0;
-                next_in_b_s[idx(x,y)]     = (y < 2) ? out_b_n[idx(x,y+1)] : 64'd0;
-                next_in_ctrl_s[idx(x,y)]  = (y < 2) ? out_ctrl_n[idx(x,y+1)] : 16'd0;
-                next_in_valid_s[idx(x,y)] = (y < 2) ? out_valid_n[idx(x,y+1)] : 1'b0;
+        next_in_a_w[0]     = 64'd0;
+        next_in_b_w[0]     = 64'd0;
+        next_in_ctrl_w[0]  = 16'd0;
+        next_in_valid_w[0] = 1'b0;
 
-                next_in_a_e[idx(x,y)]     = (x < 2) ? out_a_w[idx(x+1,y)] : 64'd0;
-                next_in_b_e[idx(x,y)]     = (x < 2) ? out_b_w[idx(x+1,y)] : 64'd0;
-                next_in_ctrl_e[idx(x,y)]  = (x < 2) ? out_ctrl_w[idx(x+1,y)] : 16'd0;
-                next_in_valid_e[idx(x,y)] = (x < 2) ? out_valid_w[idx(x+1,y)] : 1'b0;
-            end
-        end
+        next_in_a_s[0]     = out_a_n[3];
+        next_in_b_s[0]     = out_b_n[3];
+        next_in_ctrl_s[0]  = out_ctrl_n[3];
+        next_in_valid_s[0] = out_valid_n[3];
+
+        next_in_a_e[0]     = out_a_w[1];
+        next_in_b_e[0]     = out_b_w[1];
+        next_in_ctrl_e[0]  = out_ctrl_w[1];
+        next_in_valid_e[0] = out_valid_w[1];
+
+        // (x=1, y=0) -> idx=1
+        next_in_a_n[1]     = 64'd0;
+        next_in_b_n[1]     = 64'd0;
+        next_in_ctrl_n[1]  = 16'd0;
+        next_in_valid_n[1] = 1'b0;
+
+        next_in_a_w[1]     = out_a_e[0];
+        next_in_b_w[1]     = out_b_e[0];
+        next_in_ctrl_w[1]  = out_ctrl_e[0];
+        next_in_valid_w[1] = out_valid_e[0];
+
+        next_in_a_s[1]     = out_a_n[4];
+        next_in_b_s[1]     = out_b_n[4];
+        next_in_ctrl_s[1]  = out_ctrl_n[4];
+        next_in_valid_s[1] = out_valid_n[4];
+
+        next_in_a_e[1]     = out_a_w[2];
+        next_in_b_e[1]     = out_b_w[2];
+        next_in_ctrl_e[1]  = out_ctrl_w[2];
+        next_in_valid_e[1] = out_valid_w[2];
+
+        // (x=2, y=0) -> idx=2
+        next_in_a_n[2]     = 64'd0;
+        next_in_b_n[2]     = 64'd0;
+        next_in_ctrl_n[2]  = 16'd0;
+        next_in_valid_n[2] = 1'b0;
+
+        next_in_a_w[2]     = out_a_e[1];
+        next_in_b_w[2]     = out_b_e[1];
+        next_in_ctrl_w[2]  = out_ctrl_e[1];
+        next_in_valid_w[2] = out_valid_e[1];
+
+        next_in_a_s[2]     = out_a_n[5];
+        next_in_b_s[2]     = out_b_n[5];
+        next_in_ctrl_s[2]  = out_ctrl_n[5];
+        next_in_valid_s[2] = out_valid_n[5];
+
+        next_in_a_e[2]     = 64'd0;
+        next_in_b_e[2]     = 64'd0;
+        next_in_ctrl_e[2]  = 16'd0;
+        next_in_valid_e[2] = 1'b0;
+
+        // (x=0, y=1) -> idx=3
+        next_in_a_n[3]     = out_a_s[0];
+        next_in_b_n[3]     = out_b_s[0];
+        next_in_ctrl_n[3]  = out_ctrl_s[0];
+        next_in_valid_n[3] = out_valid_s[0];
+
+        next_in_a_w[3]     = 64'd0;
+        next_in_b_w[3]     = 64'd0;
+        next_in_ctrl_w[3]  = 16'd0;
+        next_in_valid_w[3] = 1'b0;
+
+        next_in_a_s[3]     = out_a_n[6];
+        next_in_b_s[3]     = out_b_n[6];
+        next_in_ctrl_s[3]  = out_ctrl_n[6];
+        next_in_valid_s[3] = out_valid_n[6];
+
+        next_in_a_e[3]     = out_a_w[4];
+        next_in_b_e[3]     = out_b_w[4];
+        next_in_ctrl_e[3]  = out_ctrl_w[4];
+        next_in_valid_e[3] = out_valid_w[4];
+
+        // (x=1, y=1) -> idx=4
+        next_in_a_n[4]     = out_a_s[1];
+        next_in_b_n[4]     = out_b_s[1];
+        next_in_ctrl_n[4]  = out_ctrl_s[1];
+        next_in_valid_n[4] = out_valid_s[1];
+
+        next_in_a_w[4]     = out_a_e[3];
+        next_in_b_w[4]     = out_b_e[3];
+        next_in_ctrl_w[4]  = out_ctrl_e[3];
+        next_in_valid_w[4] = out_valid_e[3];
+
+        next_in_a_s[4]     = out_a_n[7];
+        next_in_b_s[4]     = out_b_n[7];
+        next_in_ctrl_s[4]  = out_ctrl_n[7];
+        next_in_valid_s[4] = out_valid_n[7];
+
+        next_in_a_e[4]     = out_a_w[5];
+        next_in_b_e[4]     = out_b_w[5];
+        next_in_ctrl_e[4]  = out_ctrl_w[5];
+        next_in_valid_e[4] = out_valid_w[5];
+
+        // (x=2, y=1) -> idx=5
+        next_in_a_n[5]     = out_a_s[2];
+        next_in_b_n[5]     = out_b_s[2];
+        next_in_ctrl_n[5]  = out_ctrl_s[2];
+        next_in_valid_n[5] = out_valid_s[2];
+
+        next_in_a_w[5]     = out_a_e[4];
+        next_in_b_w[5]     = out_b_e[4];
+        next_in_ctrl_w[5]  = out_ctrl_e[4];
+        next_in_valid_w[5] = out_valid_e[4];
+
+        next_in_a_s[5]     = out_a_n[8];
+        next_in_b_s[5]     = out_b_n[8];
+        next_in_ctrl_s[5]  = out_ctrl_n[8];
+        next_in_valid_s[5] = out_valid_n[8];
+
+        next_in_a_e[5]     = 64'd0;
+        next_in_b_e[5]     = 64'd0;
+        next_in_ctrl_e[5]  = 16'd0;
+        next_in_valid_e[5] = 1'b0;
+
+        // (x=0, y=2) -> idx=6
+        next_in_a_n[6]     = out_a_s[3];
+        next_in_b_n[6]     = out_b_s[3];
+        next_in_ctrl_n[6]  = out_ctrl_s[3];
+        next_in_valid_n[6] = out_valid_s[3];
+
+        next_in_a_w[6]     = 64'd0;
+        next_in_b_w[6]     = 64'd0;
+        next_in_ctrl_w[6]  = 16'd0;
+        next_in_valid_w[6] = 1'b0;
+
+        next_in_a_s[6]     = 64'd0;
+        next_in_b_s[6]     = 64'd0;
+        next_in_ctrl_s[6]  = 16'd0;
+        next_in_valid_s[6] = 1'b0;
+
+        next_in_a_e[6]     = out_a_w[7];
+        next_in_b_e[6]     = out_b_w[7];
+        next_in_ctrl_e[6]  = out_ctrl_w[7];
+        next_in_valid_e[6] = out_valid_w[7];
+
+        // (x=1, y=2) -> idx=7
+        next_in_a_n[7]     = out_a_s[4];
+        next_in_b_n[7]     = out_b_s[4];
+        next_in_ctrl_n[7]  = out_ctrl_s[4];
+        next_in_valid_n[7] = out_valid_s[4];
+
+        next_in_a_w[7]     = out_a_e[6];
+        next_in_b_w[7]     = out_b_e[6];
+        next_in_ctrl_w[7]  = out_ctrl_e[6];
+        next_in_valid_w[7] = out_valid_e[6];
+
+        next_in_a_s[7]     = 64'd0;
+        next_in_b_s[7]     = 64'd0;
+        next_in_ctrl_s[7]  = 16'd0;
+        next_in_valid_s[7] = 1'b0;
+
+        next_in_a_e[7]     = out_a_w[8];
+        next_in_b_e[7]     = out_b_w[8];
+        next_in_ctrl_e[7]  = out_ctrl_w[8];
+        next_in_valid_e[7] = out_valid_w[8];
+
+        // (x=2, y=2) -> idx=8
+        next_in_a_n[8]     = out_a_s[5];
+        next_in_b_n[8]     = out_b_s[5];
+        next_in_ctrl_n[8]  = out_ctrl_s[5];
+        next_in_valid_n[8] = out_valid_s[5];
+
+        next_in_a_w[8]     = out_a_e[7];
+        next_in_b_w[8]     = out_b_e[7];
+        next_in_ctrl_w[8]  = out_ctrl_e[7];
+        next_in_valid_w[8] = out_valid_e[7];
+
+        next_in_a_s[8]     = 64'd0;
+        next_in_b_s[8]     = 64'd0;
+        next_in_ctrl_s[8]  = 16'd0;
+        next_in_valid_s[8] = 1'b0;
+
+        next_in_a_e[8]     = 64'd0;
+        next_in_b_e[8]     = 64'd0;
+        next_in_ctrl_e[8]  = 16'd0;
+        next_in_valid_e[8] = 1'b0;
+
 
         // Default host inputs to zero
-        for (integer i=0; i<9; i=i+1) begin
-            next_host_in_a[i] = 64'd0; next_host_in_b[i] = 64'd0; next_host_in_ctrl[i] = 16'd0; next_host_in_valid[i] = 1'b0;
-        end
+        next_host_in_a[0] = 64'd0; next_host_in_b[0] = 64'd0; next_host_in_ctrl[0] = 16'd0; next_host_in_valid[0] = 1'b0;
+        next_host_in_a[1] = 64'd0; next_host_in_b[1] = 64'd0; next_host_in_ctrl[1] = 16'd0; next_host_in_valid[1] = 1'b0;
+        next_host_in_a[2] = 64'd0; next_host_in_b[2] = 64'd0; next_host_in_ctrl[2] = 16'd0; next_host_in_valid[2] = 1'b0;
+        next_host_in_a[3] = 64'd0; next_host_in_b[3] = 64'd0; next_host_in_ctrl[3] = 16'd0; next_host_in_valid[3] = 1'b0;
+        next_host_in_a[4] = 64'd0; next_host_in_b[4] = 64'd0; next_host_in_ctrl[4] = 16'd0; next_host_in_valid[4] = 1'b0;
+        next_host_in_a[5] = 64'd0; next_host_in_b[5] = 64'd0; next_host_in_ctrl[5] = 16'd0; next_host_in_valid[5] = 1'b0;
+        next_host_in_a[6] = 64'd0; next_host_in_b[6] = 64'd0; next_host_in_ctrl[6] = 16'd0; next_host_in_valid[6] = 1'b0;
+        next_host_in_a[7] = 64'd0; next_host_in_b[7] = 64'd0; next_host_in_ctrl[7] = 16'd0; next_host_in_valid[7] = 1'b0;
+        next_host_in_a[8] = 64'd0; next_host_in_b[8] = 64'd0; next_host_in_ctrl[8] = 16'd0; next_host_in_valid[8] = 1'b0;
         
         // State machine for injection
         next_is_busy = is_busy;
@@ -103,25 +276,122 @@ module intermediate(
     // --- State Update Logic (Sequential) ---
     always @(posedge clk) begin
         is_busy <= next_is_busy;
-        for (integer i=0; i<9; i=i+1) begin
-            in_a_n[i] <= next_in_a_n[i]; in_b_n[i] <= next_in_b_n[i]; in_ctrl_n[i] <= next_in_ctrl_n[i]; in_valid_n[i] <= next_in_valid_n[i];
-            in_a_e[i] <= next_in_a_e[i]; in_b_e[i] <= next_in_b_e[i]; in_ctrl_e[i] <= next_in_ctrl_e[i]; in_valid_e[i] <= next_in_valid_e[i];
-            in_a_s[i] <= next_in_a_s[i]; in_b_s[i] <= next_in_b_s[i]; in_ctrl_s[i] <= next_in_ctrl_s[i]; in_valid_s[i] <= next_in_valid_s[i];
-            in_a_w[i] <= next_in_a_w[i]; in_b_w[i] <= next_in_b_w[i]; in_ctrl_w[i] <= next_in_ctrl_w[i]; in_valid_w[i] <= next_in_valid_w[i];
-            host_in_a[i] <= next_host_in_a[i]; host_in_b[i] <= next_host_in_b[i]; host_in_ctrl[i] <= next_host_in_ctrl[i]; host_in_valid[i] <= next_host_in_valid[i];
-        end
+
+        in_a_n[0] <= next_in_a_n[0]; in_b_n[0] <= next_in_b_n[0]; in_ctrl_n[0] <= next_in_ctrl_n[0]; in_valid_n[0] <= next_in_valid_n[0];
+        in_a_e[0] <= next_in_a_e[0]; in_b_e[0] <= next_in_b_e[0]; in_ctrl_e[0] <= next_in_ctrl_e[0]; in_valid_e[0] <= next_in_valid_e[0];
+        in_a_s[0] <= next_in_a_s[0]; in_b_s[0] <= next_in_b_s[0]; in_ctrl_s[0] <= next_in_ctrl_s[0]; in_valid_s[0] <= next_in_valid_s[0];
+        in_a_w[0] <= next_in_a_w[0]; in_b_w[0] <= next_in_b_w[0]; in_ctrl_w[0] <= next_in_ctrl_w[0]; in_valid_w[0] <= next_in_valid_w[0];
+        host_in_a[0] <= next_host_in_a[0]; host_in_b[0] <= next_host_in_b[0]; host_in_ctrl[0] <= next_host_in_ctrl[0]; host_in_valid[0] <= next_host_in_valid[0];
+        
+        in_a_n[1] <= next_in_a_n[1]; in_b_n[1] <= next_in_b_n[1]; in_ctrl_n[1] <= next_in_ctrl_n[1]; in_valid_n[1] <= next_in_valid_n[1];
+        in_a_e[1] <= next_in_a_e[1]; in_b_e[1] <= next_in_b_e[1]; in_ctrl_e[1] <= next_in_ctrl_e[1]; in_valid_e[1] <= next_in_valid_e[1];
+        in_a_s[1] <= next_in_a_s[1]; in_b_s[1] <= next_in_b_s[1]; in_ctrl_s[1] <= next_in_ctrl_s[1]; in_valid_s[1] <= next_in_valid_s[1];
+        in_a_w[1] <= next_in_a_w[1]; in_b_w[1] <= next_in_b_w[1]; in_ctrl_w[1] <= next_in_ctrl_w[1]; in_valid_w[1] <= next_in_valid_w[1];
+        host_in_a[1] <= next_host_in_a[1]; host_in_b[1] <= next_host_in_b[1]; host_in_ctrl[1] <= next_host_in_ctrl[1]; host_in_valid[1] <= next_host_in_valid[1];
+        
+        in_a_n[2] <= next_in_a_n[2]; in_b_n[2] <= next_in_b_n[2]; in_ctrl_n[2] <= next_in_ctrl_n[2]; in_valid_n[2] <= next_in_valid_n[2];
+        in_a_e[2] <= next_in_a_e[2]; in_b_e[2] <= next_in_b_e[2]; in_ctrl_e[2] <= next_in_ctrl_e[2]; in_valid_e[2] <= next_in_valid_e[2];
+        in_a_s[2] <= next_in_a_s[2]; in_b_s[2] <= next_in_b_s[2]; in_ctrl_s[2] <= next_in_ctrl_s[2]; in_valid_s[2] <= next_in_valid_s[2];
+        in_a_w[2] <= next_in_a_w[2]; in_b_w[2] <= next_in_b_w[2]; in_ctrl_w[2] <= next_in_ctrl_w[2]; in_valid_w[2] <= next_in_valid_w[2];
+        host_in_a[2] <= next_host_in_a[2]; host_in_b[2] <= next_host_in_b[2]; host_in_ctrl[2] <= next_host_in_ctrl[2]; host_in_valid[2] <= next_host_in_valid[2];
+        
+        in_a_n[3] <= next_in_a_n[3]; in_b_n[3] <= next_in_b_n[3]; in_ctrl_n[3] <= next_in_ctrl_n[3]; in_valid_n[3] <= next_in_valid_n[3];
+        in_a_e[3] <= next_in_a_e[3]; in_b_e[3] <= next_in_b_e[3]; in_ctrl_e[3] <= next_in_ctrl_e[3]; in_valid_e[3] <= next_in_valid_e[3];
+        in_a_s[3] <= next_in_a_s[3]; in_b_s[3] <= next_in_b_s[3]; in_ctrl_s[3] <= next_in_ctrl_s[3]; in_valid_s[3] <= next_in_valid_s[3];
+        in_a_w[3] <= next_in_a_w[3]; in_b_w[3] <= next_in_b_w[3]; in_ctrl_w[3] <= next_in_ctrl_w[3]; in_valid_w[3] <= next_in_valid_w[3];
+        host_in_a[3] <= next_host_in_a[3]; host_in_b[3] <= next_host_in_b[3]; host_in_ctrl[3] <= next_host_in_ctrl[3]; host_in_valid[3] <= next_host_in_valid[3];
+        
+        in_a_n[4] <= next_in_a_n[4]; in_b_n[4] <= next_in_b_n[4]; in_ctrl_n[4] <= next_in_ctrl_n[4]; in_valid_n[4] <= next_in_valid_n[4];
+        in_a_e[4] <= next_in_a_e[4]; in_b_e[4] <= next_in_b_e[4]; in_ctrl_e[4] <= next_in_ctrl_e[4]; in_valid_e[4] <= next_in_valid_e[4];
+        in_a_s[4] <= next_in_a_s[4]; in_b_s[4] <= next_in_b_s[4]; in_ctrl_s[4] <= next_in_ctrl_s[4]; in_valid_s[4] <= next_in_valid_s[4];
+        in_a_w[4] <= next_in_a_w[4]; in_b_w[4] <= next_in_b_w[4]; in_ctrl_w[4] <= next_in_ctrl_w[4]; in_valid_w[4] <= next_in_valid_w[4];
+        host_in_a[4] <= next_host_in_a[4]; host_in_b[4] <= next_host_in_b[4]; host_in_ctrl[4] <= next_host_in_ctrl[4]; host_in_valid[4] <= next_host_in_valid[4];
+        
+        in_a_n[5] <= next_in_a_n[5]; in_b_n[5] <= next_in_b_n[5]; in_ctrl_n[5] <= next_in_ctrl_n[5]; in_valid_n[5] <= next_in_valid_n[5];
+        in_a_e[5] <= next_in_a_e[5]; in_b_e[5] <= next_in_b_e[5]; in_ctrl_e[5] <= next_in_ctrl_e[5]; in_valid_e[5] <= next_in_valid_e[5];
+        in_a_s[5] <= next_in_a_s[5]; in_b_s[5] <= next_in_b_s[5]; in_ctrl_s[5] <= next_in_ctrl_s[5]; in_valid_s[5] <= next_in_valid_s[5];
+        in_a_w[5] <= next_in_a_w[5]; in_b_w[5] <= next_in_b_w[5]; in_ctrl_w[5] <= next_in_ctrl_w[5]; in_valid_w[5] <= next_in_valid_w[5];
+        host_in_a[5] <= next_host_in_a[5]; host_in_b[5] <= next_host_in_b[5]; host_in_ctrl[5] <= next_host_in_ctrl[5]; host_in_valid[5] <= next_host_in_valid[5];
+        
+        in_a_n[6] <= next_in_a_n[6]; in_b_n[6] <= next_in_b_n[6]; in_ctrl_n[6] <= next_in_ctrl_n[6]; in_valid_n[6] <= next_in_valid_n[6];
+        in_a_e[6] <= next_in_a_e[6]; in_b_e[6] <= next_in_b_e[6]; in_ctrl_e[6] <= next_in_ctrl_e[6]; in_valid_e[6] <= next_in_valid_e[6];
+        in_a_s[6] <= next_in_a_s[6]; in_b_s[6] <= next_in_b_s[6]; in_ctrl_s[6] <= next_in_ctrl_s[6]; in_valid_s[6] <= next_in_valid_s[6];
+        in_a_w[6] <= next_in_a_w[6]; in_b_w[6] <= next_in_b_w[6]; in_ctrl_w[6] <= next_in_ctrl_w[6]; in_valid_w[6] <= next_in_valid_w[6];
+        host_in_a[6] <= next_host_in_a[6]; host_in_b[6] <= next_host_in_b[6]; host_in_ctrl[6] <= next_host_in_ctrl[6]; host_in_valid[6] <= next_host_in_valid[6];
+        
+        in_a_n[7] <= next_in_a_n[7]; in_b_n[7] <= next_in_b_n[7]; in_ctrl_n[7] <= next_in_ctrl_n[7]; in_valid_n[7] <= next_in_valid_n[7];
+        in_a_e[7] <= next_in_a_e[7]; in_b_e[7] <= next_in_b_e[7]; in_ctrl_e[7] <= next_in_ctrl_e[7]; in_valid_e[7] <= next_in_valid_e[7];
+        in_a_s[7] <= next_in_a_s[7]; in_b_s[7] <= next_in_b_s[7]; in_ctrl_s[7] <= next_in_ctrl_s[7]; in_valid_s[7] <= next_in_valid_s[7];
+        in_a_w[7] <= next_in_a_w[7]; in_b_w[7] <= next_in_b_w[7]; in_ctrl_w[7] <= next_in_ctrl_w[7]; in_valid_w[7] <= next_in_valid_w[7];
+        host_in_a[7] <= next_host_in_a[7]; host_in_b[7] <= next_host_in_b[7]; host_in_ctrl[7] <= next_host_in_ctrl[7]; host_in_valid[7] <= next_host_in_valid[7];
+        
+        in_a_n[8] <= next_in_a_n[8]; in_b_n[8] <= next_in_b_n[8]; in_ctrl_n[8] <= next_in_ctrl_n[8]; in_valid_n[8] <= next_in_valid_n[8];
+        in_a_e[8] <= next_in_a_e[8]; in_b_e[8] <= next_in_b_e[8]; in_ctrl_e[8] <= next_in_ctrl_e[8]; in_valid_e[8] <= next_in_valid_e[8];
+        in_a_s[8] <= next_in_a_s[8]; in_b_s[8] <= next_in_b_s[8]; in_ctrl_s[8] <= next_in_ctrl_s[8]; in_valid_s[8] <= next_in_valid_s[8];
+        in_a_w[8] <= next_in_a_w[8]; in_b_w[8] <= next_in_b_w[8]; in_ctrl_w[8] <= next_in_ctrl_w[8]; in_valid_w[8] <= next_in_valid_w[8];
+        host_in_a[8] <= next_host_in_a[8]; host_in_b[8] <= next_host_in_b[8]; host_in_ctrl[8] <= next_host_in_ctrl[8]; host_in_valid[8] <= next_host_in_valid[8];
+
     end
 
     // Initial block to reset all state registers
     initial begin
         is_busy = 1'b0;
-        for (integer i=0; i<9; i=i+1) begin
-            in_a_n[i] = 0; in_b_n[i] = 0; in_ctrl_n[i] = 0; in_valid_n[i] = 0;
-            in_a_e[i] = 0; in_b_e[i] = 0; in_ctrl_e[i] = 0; in_valid_e[i] = 0;
-            in_a_s[i] = 0; in_b_s[i] = 0; in_ctrl_s[i] = 0; in_valid_s[i] = 0;
-            in_a_w[i] = 0; in_b_w[i] = 0; in_ctrl_w[i] = 0; in_valid_w[i] = 0;
-            host_in_a[i] = 0; host_in_b[i] = 0; host_in_ctrl[i] = 0; host_in_valid[i] = 0;
-        end
+        
+        in_a_n[0] = 0; in_b_n[0] = 0; in_ctrl_n[0] = 0; in_valid_n[0] = 0;
+        in_a_e[0] = 0; in_b_e[0] = 0; in_ctrl_e[0] = 0; in_valid_e[0] = 0;
+        in_a_s[0] = 0; in_b_s[0] = 0; in_ctrl_s[0] = 0; in_valid_s[0] = 0;
+        in_a_w[0] = 0; in_b_w[0] = 0; in_ctrl_w[0] = 0; in_valid_w[0] = 0;
+        host_in_a[0] = 0; host_in_b[0] = 0; host_in_ctrl[0] = 0; host_in_valid[0] = 0;
+
+        in_a_n[1] = 0; in_b_n[1] = 0; in_ctrl_n[1] = 0; in_valid_n[1] = 0;
+        in_a_e[1] = 0; in_b_e[1] = 0; in_ctrl_e[1] = 0; in_valid_e[1] = 0;
+        in_a_s[1] = 0; in_b_s[1] = 0; in_ctrl_s[1] = 0; in_valid_s[1] = 0;
+        in_a_w[1] = 0; in_b_w[1] = 0; in_ctrl_w[1] = 0; in_valid_w[1] = 0;
+        host_in_a[1] = 0; host_in_b[1] = 0; host_in_ctrl[1] = 0; host_in_valid[1] = 0;
+        
+        in_a_n[2] = 0; in_b_n[2] = 0; in_ctrl_n[2] = 0; in_valid_n[2] = 0;
+        in_a_e[2] = 0; in_b_e[2] = 0; in_ctrl_e[2] = 0; in_valid_e[2] = 0;
+        in_a_s[2] = 0; in_b_s[2] = 0; in_ctrl_s[2] = 0; in_valid_s[2] = 0;
+        in_a_w[2] = 0; in_b_w[2] = 0; in_ctrl_w[2] = 0; in_valid_w[2] = 0;
+        host_in_a[2] = 0; host_in_b[2] = 0; host_in_ctrl[2] = 0; host_in_valid[2] = 0;
+        
+        in_a_n[3] = 0; in_b_n[3] = 0; in_ctrl_n[3] = 0; in_valid_n[3] = 0;
+        in_a_e[3] = 0; in_b_e[3] = 0; in_ctrl_e[3] = 0; in_valid_e[3] = 0;
+        in_a_s[3] = 0; in_b_s[3] = 0; in_ctrl_s[3] = 0; in_valid_s[3] = 0;
+        in_a_w[3] = 0; in_b_w[3] = 0; in_ctrl_w[3] = 0; in_valid_w[3] = 0;
+        host_in_a[3] = 0; host_in_b[3] = 0; host_in_ctrl[3] = 0; host_in_valid[3] = 0;
+        
+        in_a_n[4] = 0; in_b_n[4] = 0; in_ctrl_n[4] = 0; in_valid_n[4] = 0;
+        in_a_e[4] = 0; in_b_e[4] = 0; in_ctrl_e[4] = 0; in_valid_e[4] = 0;
+        in_a_s[4] = 0; in_b_s[4] = 0; in_ctrl_s[4] = 0; in_valid_s[4] = 0;
+        in_a_w[4] = 0; in_b_w[4] = 0; in_ctrl_w[4] = 0; in_valid_w[4] = 0;
+        host_in_a[4] = 0; host_in_b[4] = 0; host_in_ctrl[4] = 0; host_in_valid[4] = 0;
+        
+        in_a_n[5] = 0; in_b_n[5] = 0; in_ctrl_n[5] = 0; in_valid_n[5] = 0;
+        in_a_e[5] = 0; in_b_e[5] = 0; in_ctrl_e[5] = 0; in_valid_e[5] = 0;
+        in_a_s[5] = 0; in_b_s[5] = 0; in_ctrl_s[5] = 0; in_valid_s[5] = 0;
+        in_a_w[5] = 0; in_b_w[5] = 0; in_ctrl_w[5] = 0; in_valid_w[5] = 0;
+        host_in_a[5] = 0; host_in_b[5] = 0; host_in_ctrl[5] = 0; host_in_valid[5] = 0;
+        
+        in_a_n[6] = 0; in_b_n[6] = 0; in_ctrl_n[6] = 0; in_valid_n[6] = 0;
+        in_a_e[6] = 0; in_b_e[6] = 0; in_ctrl_e[6] = 0; in_valid_e[6] = 0;
+        in_a_s[6] = 0; in_b_s[6] = 0; in_ctrl_s[6] = 0; in_valid_s[6] = 0;
+        in_a_w[6] = 0; in_b_w[6] = 0; in_ctrl_w[6] = 0; in_valid_w[6] = 0;
+        host_in_a[6] = 0; host_in_b[6] = 0; host_in_ctrl[6] = 0; host_in_valid[6] = 0;
+        
+        in_a_n[7] = 0; in_b_n[7] = 0; in_ctrl_n[7] = 0; in_valid_n[7] = 0;
+        in_a_e[7] = 0; in_b_e[7] = 0; in_ctrl_e[7] = 0; in_valid_e[7] = 0;
+        in_a_s[7] = 0; in_b_s[7] = 0; in_ctrl_s[7] = 0; in_valid_s[7] = 0;
+        in_a_w[7] = 0; in_b_w[7] = 0; in_ctrl_w[7] = 0; in_valid_w[7] = 0;
+        host_in_a[7] = 0; host_in_b[7] = 0; host_in_ctrl[7] = 0; host_in_valid[7] = 0;
+        
+        in_a_n[8] = 0; in_b_n[8] = 0; in_ctrl_n[8] = 0; in_valid_n[8] = 0;
+        in_a_e[8] = 0; in_b_e[8] = 0; in_ctrl_e[8] = 0; in_valid_e[8] = 0;
+        in_a_s[8] = 0; in_b_s[8] = 0; in_ctrl_s[8] = 0; in_valid_s[8] = 0;
+        in_a_w[8] = 0; in_b_w[8] = 0; in_ctrl_w[8] = 0; in_valid_w[8] = 0;
+        host_in_a[8] = 0; host_in_b[8] = 0; host_in_ctrl[8] = 0; host_in_valid[8] = 0;
+        
+
     end
 
     assign result = host_out_a[0];

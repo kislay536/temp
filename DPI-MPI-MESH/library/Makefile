@@ -36,6 +36,7 @@ top_mod ?= calculator
 DPI_SOURCES =
 CXX_SOURCES = sim.cpp $(DPI_SOURCES)
 REMOVE = _build_sim.log adjacency.dot build_lib_library.log build_library.log hierarchy.dot tb_calculator.vcd calculator.html  calculator.xml _partition_ports_data.txt module_hierarchy.svg module_hierarchy.html module_hierarchy.html tile_mapped_graph.html _wires.txt _dtype_map.txt mpi-lib-tile0.cpp mpi-lib-tile1.cpp mpi-lib-tile2.cpp mpi-lib-tile3.cpp mpi-lib-tile4.cpp mpi-lib-tile5.cpp mpi-lib-tile6.cpp mpi-lib-tile7.cpp mpi-lib-tile8.cpp mpi-lib-tile9.cpp _elaborate.log
+mmpi ?= 
 
 copy_files:
 	@echo "== == == 3. Copying mpi-lib-add.cpp file..."
@@ -192,7 +193,7 @@ elaborate_design:
 		--top-module $(top_mod) \
 		-CFLAGS "-O2 $(MULTIPLIER_HEADERS)" \
 		-LDFLAGS "$(MULTIPLIER_LIB) -lstdc++" \
-		--timing --trace --Wall --Wno-fatal --Wno-UNUSED --Wno-lint -Wno-UNOPTFLAT --mmpi-o1
+		--timing --trace --Wall --Wno-fatal --Wno-UNUSED --Wno-lint -Wno-UNOPTFLAT $(mmpi)
 		
 # --mmpi-o1
 
