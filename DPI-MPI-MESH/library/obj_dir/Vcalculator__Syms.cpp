@@ -18,7 +18,7 @@ Vcalculator__Syms::Vcalculator__Syms(VerilatedContext* contextp, const char* nam
     , TOP{this, namep}
 {
         // Check resources
-        Verilated::stackCheck(1735);
+        Verilated::stackCheck(25);
     // Configure time unit / time precision
     _vm_contextp__->timeunit(-9);
     _vm_contextp__->timeprecision(-12);

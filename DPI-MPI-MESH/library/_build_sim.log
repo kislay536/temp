@@ -1,4 +1,4 @@
-Starting build at Sun 17 Aug 2025 05:48:16 PM UTC
+Starting build at Mon 18 Aug 2025 11:29:44 AM UTC
 make[1]: Entering directory '/home/riscv_sec/metro-mpi/temp/DPI-MPI-MESH/library'
 Elaborating with DPI...
 verilator -cc alu_tile_noc.v calculator.v intermediate.v terminate.v \
@@ -11,9 +11,9 @@ verilator -cc alu_tile_noc.v calculator.v intermediate.v terminate.v \
 Printing the argString - 
 Begin //==  -cc alu_tile_noc.v calculator.v intermediate.v terminate.v --exe sim.cpp --Mdir obj_dir --top-module calculator -CFLAGS -O2  -LDFLAGS  -lstdc++ --timing --trace --Wall --Wno-fatal --Wno-UNUSED --Wno-lint -Wno-UNOPTFLAT ==// End
 [DEBUG TRACE] Entering process() function - Call #1
-- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-7-gfecb95035 (mod)
-- Verilator: Built from 0.142 MB sources in 5 modules, into 0.782 MB in 10 C++ files needing 0.002 MB
-- Verilator: Walltime 0.090 s (elab=0.005, cvt=0.058, bld=0.000); cpu 0.090 s on 1 threads; alloced 30.668 MB
+- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-9-g62350cd50
+- Verilator: Built from 0.153 MB sources in 5 modules, into 0.598 MB in 10 C++ files needing 0.000 MB
+- Verilator: Walltime 0.077 s (elab=0.004, cvt=0.051, bld=0.000); cpu 0.077 s on 1 threads; alloced 29.684 MB
 Building the simulation binary...
 make[2]: Entering directory '/home/riscv_sec/metro-mpi/temp/DPI-MPI-MESH/library/obj_dir'
 g++  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=0 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -O2   -Os  -c -o sim.o ../sim.cpp
@@ -82,4 +82,4 @@ Running simulation...
 [t=0] Tile(2,2): op=8, A=7, B=2, Res=1
 [test 2] a=7 b=2 mode=8 (SRL) valid=1 result=1
 make[1]: Leaving directory '/home/riscv_sec/metro-mpi/temp/DPI-MPI-MESH/library'
-Build finished at Sun 17 Aug 2025 05:48:28 PM UTC
+Build finished at Mon 18 Aug 2025 11:29:56 AM UTC
