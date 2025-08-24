@@ -77,15 +77,18 @@ void initialize_partition_t2_2() {
 // --- Modular MPI Send/Receive functions for each rank ---
 
 void receive_inputs_for_rank_1() {
-    mpi_rank_0_to_1_t req_from_0 = mpi_receive_from_rank_0();
+    // Receive from Rank 0
+    mpi_rank_0_to_1_t req_from_0 = mpi_receive_from_rank_0_to_1();
     top->host_in_a = req_from_0.a;
     top->host_in_b = req_from_0.b;
-    mpi_rank_2_to_1_t req_from_2 = mpi_receive_from_rank_2();
+    // Receive from Rank 2
+    mpi_rank_2_to_1_t req_from_2 = mpi_receive_from_rank_2_to_1();
     top->in_a_e = req_from_2.out_a_w;
     top->in_b_e = req_from_2.out_b_w;
     top->in_ctrl_e = req_from_2.out_ctrl_w;
     top->in_valid_e = req_from_2.out_valid_w;
-    mpi_rank_4_to_1_t req_from_4 = mpi_receive_from_rank_4();
+    // Receive from Rank 4
+    mpi_rank_4_to_1_t req_from_4 = mpi_receive_from_rank_4_to_1();
     top->in_a_s = req_from_4.out_a_n;
     top->in_b_s = req_from_4.out_b_n;
     top->in_ctrl_s = req_from_4.out_ctrl_n;
@@ -93,12 +96,14 @@ void receive_inputs_for_rank_1() {
 }
 
 void send_outputs_from_rank_1() {
+    // Send to Rank 0
     {
         mpi_rank_1_to_0_t resp_to_0{};
         resp_to_0.host_out_a = top->host_out_a;
         resp_to_0.host_out_valid = top->host_out_valid;
         mpi_send_rank_1_to_0(resp_to_0);
     }
+    // Send to Rank 2
     {
         mpi_rank_1_to_2_t resp_to_2{};
         resp_to_2.out_a_e = top->out_a_e;
@@ -107,6 +112,7 @@ void send_outputs_from_rank_1() {
         resp_to_2.out_valid_e = top->out_valid_e;
         mpi_send_rank_1_to_2(resp_to_2);
     }
+    // Send to Rank 4
     {
         mpi_rank_1_to_4_t resp_to_4{};
         resp_to_4.out_a_s = top->out_a_s;
@@ -118,17 +124,20 @@ void send_outputs_from_rank_1() {
 }
 
 void receive_inputs_for_rank_2() {
-    mpi_rank_1_to_2_t req_from_1 = mpi_receive_from_rank_1();
+    // Receive from Rank 1
+    mpi_rank_1_to_2_t req_from_1 = mpi_receive_from_rank_1_to_2();
     top->in_a_w = req_from_1.out_a_e;
     top->in_b_w = req_from_1.out_b_e;
     top->in_ctrl_w = req_from_1.out_ctrl_e;
     top->in_valid_w = req_from_1.out_valid_e;
-    mpi_rank_3_to_2_t req_from_3 = mpi_receive_from_rank_3();
+    // Receive from Rank 3
+    mpi_rank_3_to_2_t req_from_3 = mpi_receive_from_rank_3_to_2();
     top->in_a_e = req_from_3.out_a_w;
     top->in_b_e = req_from_3.out_b_w;
     top->in_ctrl_e = req_from_3.out_ctrl_w;
     top->in_valid_e = req_from_3.out_valid_w;
-    mpi_rank_5_to_2_t req_from_5 = mpi_receive_from_rank_5();
+    // Receive from Rank 5
+    mpi_rank_5_to_2_t req_from_5 = mpi_receive_from_rank_5_to_2();
     top->in_a_s = req_from_5.out_a_n;
     top->in_b_s = req_from_5.out_b_n;
     top->in_ctrl_s = req_from_5.out_ctrl_n;
@@ -136,6 +145,7 @@ void receive_inputs_for_rank_2() {
 }
 
 void send_outputs_from_rank_2() {
+    // Send to Rank 1
     {
         mpi_rank_2_to_1_t resp_to_1{};
         resp_to_1.out_a_w = top->out_a_w;
@@ -144,6 +154,7 @@ void send_outputs_from_rank_2() {
         resp_to_1.out_valid_w = top->out_valid_w;
         mpi_send_rank_2_to_1(resp_to_1);
     }
+    // Send to Rank 3
     {
         mpi_rank_2_to_3_t resp_to_3{};
         resp_to_3.out_a_e = top->out_a_e;
@@ -152,6 +163,7 @@ void send_outputs_from_rank_2() {
         resp_to_3.out_valid_e = top->out_valid_e;
         mpi_send_rank_2_to_3(resp_to_3);
     }
+    // Send to Rank 5
     {
         mpi_rank_2_to_5_t resp_to_5{};
         resp_to_5.out_a_s = top->out_a_s;
@@ -163,12 +175,14 @@ void send_outputs_from_rank_2() {
 }
 
 void receive_inputs_for_rank_3() {
-    mpi_rank_2_to_3_t req_from_2 = mpi_receive_from_rank_2();
+    // Receive from Rank 2
+    mpi_rank_2_to_3_t req_from_2 = mpi_receive_from_rank_2_to_3();
     top->in_a_w = req_from_2.out_a_e;
     top->in_b_w = req_from_2.out_b_e;
     top->in_ctrl_w = req_from_2.out_ctrl_e;
     top->in_valid_w = req_from_2.out_valid_e;
-    mpi_rank_6_to_3_t req_from_6 = mpi_receive_from_rank_6();
+    // Receive from Rank 6
+    mpi_rank_6_to_3_t req_from_6 = mpi_receive_from_rank_6_to_3();
     top->in_a_s = req_from_6.out_a_n;
     top->in_b_s = req_from_6.out_b_n;
     top->in_ctrl_s = req_from_6.out_ctrl_n;
@@ -176,6 +190,7 @@ void receive_inputs_for_rank_3() {
 }
 
 void send_outputs_from_rank_3() {
+    // Send to Rank 2
     {
         mpi_rank_3_to_2_t resp_to_2{};
         resp_to_2.out_a_w = top->out_a_w;
@@ -184,6 +199,7 @@ void send_outputs_from_rank_3() {
         resp_to_2.out_valid_w = top->out_valid_w;
         mpi_send_rank_3_to_2(resp_to_2);
     }
+    // Send to Rank 6
     {
         mpi_rank_3_to_6_t resp_to_6{};
         resp_to_6.out_a_s = top->out_a_s;
@@ -195,17 +211,20 @@ void send_outputs_from_rank_3() {
 }
 
 void receive_inputs_for_rank_4() {
-    mpi_rank_1_to_4_t req_from_1 = mpi_receive_from_rank_1();
+    // Receive from Rank 1
+    mpi_rank_1_to_4_t req_from_1 = mpi_receive_from_rank_1_to_4();
     top->in_a_n = req_from_1.out_a_s;
     top->in_b_n = req_from_1.out_b_s;
     top->in_ctrl_n = req_from_1.out_ctrl_s;
     top->in_valid_n = req_from_1.out_valid_s;
-    mpi_rank_5_to_4_t req_from_5 = mpi_receive_from_rank_5();
+    // Receive from Rank 5
+    mpi_rank_5_to_4_t req_from_5 = mpi_receive_from_rank_5_to_4();
     top->in_a_e = req_from_5.out_a_w;
     top->in_b_e = req_from_5.out_b_w;
     top->in_ctrl_e = req_from_5.out_ctrl_w;
     top->in_valid_e = req_from_5.out_valid_w;
-    mpi_rank_7_to_4_t req_from_7 = mpi_receive_from_rank_7();
+    // Receive from Rank 7
+    mpi_rank_7_to_4_t req_from_7 = mpi_receive_from_rank_7_to_4();
     top->in_a_s = req_from_7.out_a_n;
     top->in_b_s = req_from_7.out_b_n;
     top->in_ctrl_s = req_from_7.out_ctrl_n;
@@ -213,6 +232,7 @@ void receive_inputs_for_rank_4() {
 }
 
 void send_outputs_from_rank_4() {
+    // Send to Rank 1
     {
         mpi_rank_4_to_1_t resp_to_1{};
         resp_to_1.out_a_n = top->out_a_n;
@@ -221,6 +241,7 @@ void send_outputs_from_rank_4() {
         resp_to_1.out_valid_n = top->out_valid_n;
         mpi_send_rank_4_to_1(resp_to_1);
     }
+    // Send to Rank 5
     {
         mpi_rank_4_to_5_t resp_to_5{};
         resp_to_5.out_a_e = top->out_a_e;
@@ -229,6 +250,7 @@ void send_outputs_from_rank_4() {
         resp_to_5.out_valid_e = top->out_valid_e;
         mpi_send_rank_4_to_5(resp_to_5);
     }
+    // Send to Rank 7
     {
         mpi_rank_4_to_7_t resp_to_7{};
         resp_to_7.out_a_s = top->out_a_s;
@@ -240,22 +262,26 @@ void send_outputs_from_rank_4() {
 }
 
 void receive_inputs_for_rank_5() {
-    mpi_rank_2_to_5_t req_from_2 = mpi_receive_from_rank_2();
+    // Receive from Rank 2
+    mpi_rank_2_to_5_t req_from_2 = mpi_receive_from_rank_2_to_5();
     top->in_a_n = req_from_2.out_a_s;
     top->in_b_n = req_from_2.out_b_s;
     top->in_ctrl_n = req_from_2.out_ctrl_s;
     top->in_valid_n = req_from_2.out_valid_s;
-    mpi_rank_4_to_5_t req_from_4 = mpi_receive_from_rank_4();
+    // Receive from Rank 4
+    mpi_rank_4_to_5_t req_from_4 = mpi_receive_from_rank_4_to_5();
     top->in_a_w = req_from_4.out_a_e;
     top->in_b_w = req_from_4.out_b_e;
     top->in_ctrl_w = req_from_4.out_ctrl_e;
     top->in_valid_w = req_from_4.out_valid_e;
-    mpi_rank_6_to_5_t req_from_6 = mpi_receive_from_rank_6();
+    // Receive from Rank 6
+    mpi_rank_6_to_5_t req_from_6 = mpi_receive_from_rank_6_to_5();
     top->in_a_e = req_from_6.out_a_w;
     top->in_b_e = req_from_6.out_b_w;
     top->in_ctrl_e = req_from_6.out_ctrl_w;
     top->in_valid_e = req_from_6.out_valid_w;
-    mpi_rank_8_to_5_t req_from_8 = mpi_receive_from_rank_8();
+    // Receive from Rank 8
+    mpi_rank_8_to_5_t req_from_8 = mpi_receive_from_rank_8_to_5();
     top->in_a_s = req_from_8.out_a_n;
     top->in_b_s = req_from_8.out_b_n;
     top->in_ctrl_s = req_from_8.out_ctrl_n;
@@ -263,6 +289,7 @@ void receive_inputs_for_rank_5() {
 }
 
 void send_outputs_from_rank_5() {
+    // Send to Rank 2
     {
         mpi_rank_5_to_2_t resp_to_2{};
         resp_to_2.out_a_n = top->out_a_n;
@@ -271,6 +298,7 @@ void send_outputs_from_rank_5() {
         resp_to_2.out_valid_n = top->out_valid_n;
         mpi_send_rank_5_to_2(resp_to_2);
     }
+    // Send to Rank 4
     {
         mpi_rank_5_to_4_t resp_to_4{};
         resp_to_4.out_a_w = top->out_a_w;
@@ -279,6 +307,7 @@ void send_outputs_from_rank_5() {
         resp_to_4.out_valid_w = top->out_valid_w;
         mpi_send_rank_5_to_4(resp_to_4);
     }
+    // Send to Rank 6
     {
         mpi_rank_5_to_6_t resp_to_6{};
         resp_to_6.out_a_e = top->out_a_e;
@@ -287,6 +316,7 @@ void send_outputs_from_rank_5() {
         resp_to_6.out_valid_e = top->out_valid_e;
         mpi_send_rank_5_to_6(resp_to_6);
     }
+    // Send to Rank 8
     {
         mpi_rank_5_to_8_t resp_to_8{};
         resp_to_8.out_a_s = top->out_a_s;
@@ -298,17 +328,20 @@ void send_outputs_from_rank_5() {
 }
 
 void receive_inputs_for_rank_6() {
-    mpi_rank_3_to_6_t req_from_3 = mpi_receive_from_rank_3();
+    // Receive from Rank 3
+    mpi_rank_3_to_6_t req_from_3 = mpi_receive_from_rank_3_to_6();
     top->in_a_n = req_from_3.out_a_s;
     top->in_b_n = req_from_3.out_b_s;
     top->in_ctrl_n = req_from_3.out_ctrl_s;
     top->in_valid_n = req_from_3.out_valid_s;
-    mpi_rank_5_to_6_t req_from_5 = mpi_receive_from_rank_5();
+    // Receive from Rank 5
+    mpi_rank_5_to_6_t req_from_5 = mpi_receive_from_rank_5_to_6();
     top->in_a_w = req_from_5.out_a_e;
     top->in_b_w = req_from_5.out_b_e;
     top->in_ctrl_w = req_from_5.out_ctrl_e;
     top->in_valid_w = req_from_5.out_valid_e;
-    mpi_rank_9_to_6_t req_from_9 = mpi_receive_from_rank_9();
+    // Receive from Rank 9
+    mpi_rank_9_to_6_t req_from_9 = mpi_receive_from_rank_9_to_6();
     top->in_a_s = req_from_9.out_a_n;
     top->in_b_s = req_from_9.out_b_n;
     top->in_ctrl_s = req_from_9.out_ctrl_n;
@@ -316,6 +349,7 @@ void receive_inputs_for_rank_6() {
 }
 
 void send_outputs_from_rank_6() {
+    // Send to Rank 3
     {
         mpi_rank_6_to_3_t resp_to_3{};
         resp_to_3.out_a_n = top->out_a_n;
@@ -324,6 +358,7 @@ void send_outputs_from_rank_6() {
         resp_to_3.out_valid_n = top->out_valid_n;
         mpi_send_rank_6_to_3(resp_to_3);
     }
+    // Send to Rank 5
     {
         mpi_rank_6_to_5_t resp_to_5{};
         resp_to_5.out_a_w = top->out_a_w;
@@ -332,6 +367,7 @@ void send_outputs_from_rank_6() {
         resp_to_5.out_valid_w = top->out_valid_w;
         mpi_send_rank_6_to_5(resp_to_5);
     }
+    // Send to Rank 9
     {
         mpi_rank_6_to_9_t resp_to_9{};
         resp_to_9.out_a_s = top->out_a_s;
@@ -343,12 +379,14 @@ void send_outputs_from_rank_6() {
 }
 
 void receive_inputs_for_rank_7() {
-    mpi_rank_4_to_7_t req_from_4 = mpi_receive_from_rank_4();
+    // Receive from Rank 4
+    mpi_rank_4_to_7_t req_from_4 = mpi_receive_from_rank_4_to_7();
     top->in_a_n = req_from_4.out_a_s;
     top->in_b_n = req_from_4.out_b_s;
     top->in_ctrl_n = req_from_4.out_ctrl_s;
     top->in_valid_n = req_from_4.out_valid_s;
-    mpi_rank_8_to_7_t req_from_8 = mpi_receive_from_rank_8();
+    // Receive from Rank 8
+    mpi_rank_8_to_7_t req_from_8 = mpi_receive_from_rank_8_to_7();
     top->in_a_e = req_from_8.out_a_w;
     top->in_b_e = req_from_8.out_b_w;
     top->in_ctrl_e = req_from_8.out_ctrl_w;
@@ -356,6 +394,7 @@ void receive_inputs_for_rank_7() {
 }
 
 void send_outputs_from_rank_7() {
+    // Send to Rank 4
     {
         mpi_rank_7_to_4_t resp_to_4{};
         resp_to_4.out_a_n = top->out_a_n;
@@ -364,6 +403,7 @@ void send_outputs_from_rank_7() {
         resp_to_4.out_valid_n = top->out_valid_n;
         mpi_send_rank_7_to_4(resp_to_4);
     }
+    // Send to Rank 8
     {
         mpi_rank_7_to_8_t resp_to_8{};
         resp_to_8.out_a_e = top->out_a_e;
@@ -375,17 +415,20 @@ void send_outputs_from_rank_7() {
 }
 
 void receive_inputs_for_rank_8() {
-    mpi_rank_5_to_8_t req_from_5 = mpi_receive_from_rank_5();
+    // Receive from Rank 5
+    mpi_rank_5_to_8_t req_from_5 = mpi_receive_from_rank_5_to_8();
     top->in_a_n = req_from_5.out_a_s;
     top->in_b_n = req_from_5.out_b_s;
     top->in_ctrl_n = req_from_5.out_ctrl_s;
     top->in_valid_n = req_from_5.out_valid_s;
-    mpi_rank_7_to_8_t req_from_7 = mpi_receive_from_rank_7();
+    // Receive from Rank 7
+    mpi_rank_7_to_8_t req_from_7 = mpi_receive_from_rank_7_to_8();
     top->in_a_w = req_from_7.out_a_e;
     top->in_b_w = req_from_7.out_b_e;
     top->in_ctrl_w = req_from_7.out_ctrl_e;
     top->in_valid_w = req_from_7.out_valid_e;
-    mpi_rank_9_to_8_t req_from_9 = mpi_receive_from_rank_9();
+    // Receive from Rank 9
+    mpi_rank_9_to_8_t req_from_9 = mpi_receive_from_rank_9_to_8();
     top->in_a_e = req_from_9.out_a_w;
     top->in_b_e = req_from_9.out_b_w;
     top->in_ctrl_e = req_from_9.out_ctrl_w;
@@ -393,6 +436,7 @@ void receive_inputs_for_rank_8() {
 }
 
 void send_outputs_from_rank_8() {
+    // Send to Rank 5
     {
         mpi_rank_8_to_5_t resp_to_5{};
         resp_to_5.out_a_n = top->out_a_n;
@@ -401,6 +445,7 @@ void send_outputs_from_rank_8() {
         resp_to_5.out_valid_n = top->out_valid_n;
         mpi_send_rank_8_to_5(resp_to_5);
     }
+    // Send to Rank 7
     {
         mpi_rank_8_to_7_t resp_to_7{};
         resp_to_7.out_a_w = top->out_a_w;
@@ -409,6 +454,7 @@ void send_outputs_from_rank_8() {
         resp_to_7.out_valid_w = top->out_valid_w;
         mpi_send_rank_8_to_7(resp_to_7);
     }
+    // Send to Rank 9
     {
         mpi_rank_8_to_9_t resp_to_9{};
         resp_to_9.out_a_e = top->out_a_e;
@@ -420,12 +466,14 @@ void send_outputs_from_rank_8() {
 }
 
 void receive_inputs_for_rank_9() {
-    mpi_rank_6_to_9_t req_from_6 = mpi_receive_from_rank_6();
+    // Receive from Rank 6
+    mpi_rank_6_to_9_t req_from_6 = mpi_receive_from_rank_6_to_9();
     top->in_a_n = req_from_6.out_a_s;
     top->in_b_n = req_from_6.out_b_s;
     top->in_ctrl_n = req_from_6.out_ctrl_s;
     top->in_valid_n = req_from_6.out_valid_s;
-    mpi_rank_8_to_9_t req_from_8 = mpi_receive_from_rank_8();
+    // Receive from Rank 8
+    mpi_rank_8_to_9_t req_from_8 = mpi_receive_from_rank_8_to_9();
     top->in_a_w = req_from_8.out_a_e;
     top->in_b_w = req_from_8.out_b_e;
     top->in_ctrl_w = req_from_8.out_ctrl_e;
@@ -433,6 +481,7 @@ void receive_inputs_for_rank_9() {
 }
 
 void send_outputs_from_rank_9() {
+    // Send to Rank 6
     {
         mpi_rank_9_to_6_t resp_to_6{};
         resp_to_6.out_a_n = top->out_a_n;
@@ -441,6 +490,7 @@ void send_outputs_from_rank_9() {
         resp_to_6.out_valid_n = top->out_valid_n;
         mpi_send_rank_9_to_6(resp_to_6);
     }
+    // Send to Rank 8
     {
         mpi_rank_9_to_8_t resp_to_8{};
         resp_to_8.out_a_w = top->out_a_w;
@@ -451,59 +501,60 @@ void send_outputs_from_rank_9() {
     }
 }
 
+// High-level handler that coordinates the communication cycle
 void handle_requests() {
     switch (rank) {
         case 1: {
             send_outputs_from_rank_1();
-            receive_inputs_from_rank_1();
+            receive_inputs_for_rank_1();
             top->eval();
             break;
         }
         case 2: {
             send_outputs_from_rank_2();
-            receive_inputs_from_rank_2();
+            receive_inputs_for_rank_2();
             top->eval();
             break;
         }
         case 3: {
             send_outputs_from_rank_3();
-            receive_inputs_from_rank_3();
+            receive_inputs_for_rank_3();
             top->eval();
             break;
         }
         case 4: {
             send_outputs_from_rank_4();
-            receive_inputs_from_rank_4();
+            receive_inputs_for_rank_4();
             top->eval();
             break;
         }
         case 5: {
             send_outputs_from_rank_5();
-            receive_inputs_from_rank_5();
+            receive_inputs_for_rank_5();
             top->eval();
             break;
         }
         case 6: {
             send_outputs_from_rank_6();
-            receive_inputs_from_rank_6();
+            receive_inputs_for_rank_6();
             top->eval();
             break;
         }
         case 7: {
             send_outputs_from_rank_7();
-            receive_inputs_from_rank_7();
+            receive_inputs_for_rank_7();
             top->eval();
             break;
         }
         case 8: {
             send_outputs_from_rank_8();
-            receive_inputs_from_rank_8();
+            receive_inputs_for_rank_8();
             top->eval();
             break;
         }
         case 9: {
             send_outputs_from_rank_9();
-            receive_inputs_from_rank_9();
+            receive_inputs_for_rank_9();
             top->eval();
             break;
         }
@@ -534,7 +585,7 @@ int main(int argc, char** argv) {
         default: break;
     }
 
-    top->eval(); // Initial eval for cycle 0 outputs
+    top->eval();
     MPI_Barrier(MPI_COMM_WORLD);
 
     bool sim_end = false;

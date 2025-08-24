@@ -228,6 +228,7 @@ clean: clean_lib
 	@rm -rf $(OBJ_DIR)
 	@if [ -d xml ]; then rm -rf xml; fi
 	@if [ -d metro_mpi ]; then rm -rf metro_mpi; fi
+	@if [ -d obj_dir* ]; then rm -rf obj_dir*; fi
 	@clear
 
 xml:

@@ -3,6 +3,10 @@
 #include <mpi.h>
 #include <cstdint>
 #include <cstddef>
+#include <iostream>
+
+using std::cout;
+using std::endl;
 
 // Struct for communication from rank 0 to 1
 struct mpi_rank_0_to_1_t {
@@ -572,261 +576,261 @@ void initialize_mpi_types() {
     }
 }
 
-void mpi_send_rank_0_to_1(mpi_rank_0_to_1_t message) {
+extern void mpi_send_rank_0_to_1(mpi_rank_0_to_1_t message) {
     MPI_Send(&message, 1, mpi_type_rank_0_to_1, 1, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_0_to_1_t mpi_receive_from_rank_0() {
+extern mpi_rank_0_to_1_t mpi_receive_from_rank_0_to_1() {
     mpi_rank_0_to_1_t message;
     MPI_Recv(&message, 1, mpi_type_rank_0_to_1, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_1_to_0(mpi_rank_1_to_0_t message) {
+extern void mpi_send_rank_1_to_0(mpi_rank_1_to_0_t message) {
     MPI_Send(&message, 1, mpi_type_rank_1_to_0, 0, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_1_to_0_t mpi_receive_from_rank_1() {
+extern mpi_rank_1_to_0_t mpi_receive_from_rank_1_to_0() {
     mpi_rank_1_to_0_t message;
     MPI_Recv(&message, 1, mpi_type_rank_1_to_0, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_1_to_2(mpi_rank_1_to_2_t message) {
+extern void mpi_send_rank_1_to_2(mpi_rank_1_to_2_t message) {
     MPI_Send(&message, 1, mpi_type_rank_1_to_2, 2, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_1_to_2_t mpi_receive_from_rank_1() {
+extern mpi_rank_1_to_2_t mpi_receive_from_rank_1_to_2() {
     mpi_rank_1_to_2_t message;
     MPI_Recv(&message, 1, mpi_type_rank_1_to_2, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_1_to_4(mpi_rank_1_to_4_t message) {
+extern void mpi_send_rank_1_to_4(mpi_rank_1_to_4_t message) {
     MPI_Send(&message, 1, mpi_type_rank_1_to_4, 4, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_1_to_4_t mpi_receive_from_rank_1() {
+extern mpi_rank_1_to_4_t mpi_receive_from_rank_1_to_4() {
     mpi_rank_1_to_4_t message;
     MPI_Recv(&message, 1, mpi_type_rank_1_to_4, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_2_to_1(mpi_rank_2_to_1_t message) {
+extern void mpi_send_rank_2_to_1(mpi_rank_2_to_1_t message) {
     MPI_Send(&message, 1, mpi_type_rank_2_to_1, 1, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_2_to_1_t mpi_receive_from_rank_2() {
+extern mpi_rank_2_to_1_t mpi_receive_from_rank_2_to_1() {
     mpi_rank_2_to_1_t message;
     MPI_Recv(&message, 1, mpi_type_rank_2_to_1, 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_2_to_3(mpi_rank_2_to_3_t message) {
+extern void mpi_send_rank_2_to_3(mpi_rank_2_to_3_t message) {
     MPI_Send(&message, 1, mpi_type_rank_2_to_3, 3, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_2_to_3_t mpi_receive_from_rank_2() {
+extern mpi_rank_2_to_3_t mpi_receive_from_rank_2_to_3() {
     mpi_rank_2_to_3_t message;
     MPI_Recv(&message, 1, mpi_type_rank_2_to_3, 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_2_to_5(mpi_rank_2_to_5_t message) {
+extern void mpi_send_rank_2_to_5(mpi_rank_2_to_5_t message) {
     MPI_Send(&message, 1, mpi_type_rank_2_to_5, 5, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_2_to_5_t mpi_receive_from_rank_2() {
+extern mpi_rank_2_to_5_t mpi_receive_from_rank_2_to_5() {
     mpi_rank_2_to_5_t message;
     MPI_Recv(&message, 1, mpi_type_rank_2_to_5, 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_3_to_2(mpi_rank_3_to_2_t message) {
+extern void mpi_send_rank_3_to_2(mpi_rank_3_to_2_t message) {
     MPI_Send(&message, 1, mpi_type_rank_3_to_2, 2, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_3_to_2_t mpi_receive_from_rank_3() {
+extern mpi_rank_3_to_2_t mpi_receive_from_rank_3_to_2() {
     mpi_rank_3_to_2_t message;
     MPI_Recv(&message, 1, mpi_type_rank_3_to_2, 3, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_3_to_6(mpi_rank_3_to_6_t message) {
+extern void mpi_send_rank_3_to_6(mpi_rank_3_to_6_t message) {
     MPI_Send(&message, 1, mpi_type_rank_3_to_6, 6, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_3_to_6_t mpi_receive_from_rank_3() {
+extern mpi_rank_3_to_6_t mpi_receive_from_rank_3_to_6() {
     mpi_rank_3_to_6_t message;
     MPI_Recv(&message, 1, mpi_type_rank_3_to_6, 3, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_4_to_1(mpi_rank_4_to_1_t message) {
+extern void mpi_send_rank_4_to_1(mpi_rank_4_to_1_t message) {
     MPI_Send(&message, 1, mpi_type_rank_4_to_1, 1, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_4_to_1_t mpi_receive_from_rank_4() {
+extern mpi_rank_4_to_1_t mpi_receive_from_rank_4_to_1() {
     mpi_rank_4_to_1_t message;
     MPI_Recv(&message, 1, mpi_type_rank_4_to_1, 4, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_4_to_5(mpi_rank_4_to_5_t message) {
+extern void mpi_send_rank_4_to_5(mpi_rank_4_to_5_t message) {
     MPI_Send(&message, 1, mpi_type_rank_4_to_5, 5, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_4_to_5_t mpi_receive_from_rank_4() {
+extern mpi_rank_4_to_5_t mpi_receive_from_rank_4_to_5() {
     mpi_rank_4_to_5_t message;
     MPI_Recv(&message, 1, mpi_type_rank_4_to_5, 4, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_4_to_7(mpi_rank_4_to_7_t message) {
+extern void mpi_send_rank_4_to_7(mpi_rank_4_to_7_t message) {
     MPI_Send(&message, 1, mpi_type_rank_4_to_7, 7, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_4_to_7_t mpi_receive_from_rank_4() {
+extern mpi_rank_4_to_7_t mpi_receive_from_rank_4_to_7() {
     mpi_rank_4_to_7_t message;
     MPI_Recv(&message, 1, mpi_type_rank_4_to_7, 4, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_5_to_2(mpi_rank_5_to_2_t message) {
+extern void mpi_send_rank_5_to_2(mpi_rank_5_to_2_t message) {
     MPI_Send(&message, 1, mpi_type_rank_5_to_2, 2, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_5_to_2_t mpi_receive_from_rank_5() {
+extern mpi_rank_5_to_2_t mpi_receive_from_rank_5_to_2() {
     mpi_rank_5_to_2_t message;
     MPI_Recv(&message, 1, mpi_type_rank_5_to_2, 5, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_5_to_4(mpi_rank_5_to_4_t message) {
+extern void mpi_send_rank_5_to_4(mpi_rank_5_to_4_t message) {
     MPI_Send(&message, 1, mpi_type_rank_5_to_4, 4, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_5_to_4_t mpi_receive_from_rank_5() {
+extern mpi_rank_5_to_4_t mpi_receive_from_rank_5_to_4() {
     mpi_rank_5_to_4_t message;
     MPI_Recv(&message, 1, mpi_type_rank_5_to_4, 5, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_5_to_6(mpi_rank_5_to_6_t message) {
+extern void mpi_send_rank_5_to_6(mpi_rank_5_to_6_t message) {
     MPI_Send(&message, 1, mpi_type_rank_5_to_6, 6, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_5_to_6_t mpi_receive_from_rank_5() {
+extern mpi_rank_5_to_6_t mpi_receive_from_rank_5_to_6() {
     mpi_rank_5_to_6_t message;
     MPI_Recv(&message, 1, mpi_type_rank_5_to_6, 5, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_5_to_8(mpi_rank_5_to_8_t message) {
+extern void mpi_send_rank_5_to_8(mpi_rank_5_to_8_t message) {
     MPI_Send(&message, 1, mpi_type_rank_5_to_8, 8, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_5_to_8_t mpi_receive_from_rank_5() {
+extern mpi_rank_5_to_8_t mpi_receive_from_rank_5_to_8() {
     mpi_rank_5_to_8_t message;
     MPI_Recv(&message, 1, mpi_type_rank_5_to_8, 5, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_6_to_3(mpi_rank_6_to_3_t message) {
+extern void mpi_send_rank_6_to_3(mpi_rank_6_to_3_t message) {
     MPI_Send(&message, 1, mpi_type_rank_6_to_3, 3, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_6_to_3_t mpi_receive_from_rank_6() {
+extern mpi_rank_6_to_3_t mpi_receive_from_rank_6_to_3() {
     mpi_rank_6_to_3_t message;
     MPI_Recv(&message, 1, mpi_type_rank_6_to_3, 6, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_6_to_5(mpi_rank_6_to_5_t message) {
+extern void mpi_send_rank_6_to_5(mpi_rank_6_to_5_t message) {
     MPI_Send(&message, 1, mpi_type_rank_6_to_5, 5, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_6_to_5_t mpi_receive_from_rank_6() {
+extern mpi_rank_6_to_5_t mpi_receive_from_rank_6_to_5() {
     mpi_rank_6_to_5_t message;
     MPI_Recv(&message, 1, mpi_type_rank_6_to_5, 6, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_6_to_9(mpi_rank_6_to_9_t message) {
+extern void mpi_send_rank_6_to_9(mpi_rank_6_to_9_t message) {
     MPI_Send(&message, 1, mpi_type_rank_6_to_9, 9, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_6_to_9_t mpi_receive_from_rank_6() {
+extern mpi_rank_6_to_9_t mpi_receive_from_rank_6_to_9() {
     mpi_rank_6_to_9_t message;
     MPI_Recv(&message, 1, mpi_type_rank_6_to_9, 6, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_7_to_4(mpi_rank_7_to_4_t message) {
+extern void mpi_send_rank_7_to_4(mpi_rank_7_to_4_t message) {
     MPI_Send(&message, 1, mpi_type_rank_7_to_4, 4, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_7_to_4_t mpi_receive_from_rank_7() {
+extern mpi_rank_7_to_4_t mpi_receive_from_rank_7_to_4() {
     mpi_rank_7_to_4_t message;
     MPI_Recv(&message, 1, mpi_type_rank_7_to_4, 7, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_7_to_8(mpi_rank_7_to_8_t message) {
+extern void mpi_send_rank_7_to_8(mpi_rank_7_to_8_t message) {
     MPI_Send(&message, 1, mpi_type_rank_7_to_8, 8, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_7_to_8_t mpi_receive_from_rank_7() {
+extern mpi_rank_7_to_8_t mpi_receive_from_rank_7_to_8() {
     mpi_rank_7_to_8_t message;
     MPI_Recv(&message, 1, mpi_type_rank_7_to_8, 7, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_8_to_5(mpi_rank_8_to_5_t message) {
+extern void mpi_send_rank_8_to_5(mpi_rank_8_to_5_t message) {
     MPI_Send(&message, 1, mpi_type_rank_8_to_5, 5, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_8_to_5_t mpi_receive_from_rank_8() {
+extern mpi_rank_8_to_5_t mpi_receive_from_rank_8_to_5() {
     mpi_rank_8_to_5_t message;
     MPI_Recv(&message, 1, mpi_type_rank_8_to_5, 8, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_8_to_7(mpi_rank_8_to_7_t message) {
+extern void mpi_send_rank_8_to_7(mpi_rank_8_to_7_t message) {
     MPI_Send(&message, 1, mpi_type_rank_8_to_7, 7, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_8_to_7_t mpi_receive_from_rank_8() {
+extern mpi_rank_8_to_7_t mpi_receive_from_rank_8_to_7() {
     mpi_rank_8_to_7_t message;
     MPI_Recv(&message, 1, mpi_type_rank_8_to_7, 8, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_8_to_9(mpi_rank_8_to_9_t message) {
+extern void mpi_send_rank_8_to_9(mpi_rank_8_to_9_t message) {
     MPI_Send(&message, 1, mpi_type_rank_8_to_9, 9, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_8_to_9_t mpi_receive_from_rank_8() {
+extern mpi_rank_8_to_9_t mpi_receive_from_rank_8_to_9() {
     mpi_rank_8_to_9_t message;
     MPI_Recv(&message, 1, mpi_type_rank_8_to_9, 8, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_9_to_6(mpi_rank_9_to_6_t message) {
+extern void mpi_send_rank_9_to_6(mpi_rank_9_to_6_t message) {
     MPI_Send(&message, 1, mpi_type_rank_9_to_6, 6, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_9_to_6_t mpi_receive_from_rank_9() {
+extern mpi_rank_9_to_6_t mpi_receive_from_rank_9_to_6() {
     mpi_rank_9_to_6_t message;
     MPI_Recv(&message, 1, mpi_type_rank_9_to_6, 9, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;
 }
 
-void mpi_send_rank_9_to_8(mpi_rank_9_to_8_t message) {
+extern void mpi_send_rank_9_to_8(mpi_rank_9_to_8_t message) {
     MPI_Send(&message, 1, mpi_type_rank_9_to_8, 8, 0, MPI_COMM_WORLD);
 }
 
-mpi_rank_9_to_8_t mpi_receive_from_rank_9() {
+extern mpi_rank_9_to_8_t mpi_receive_from_rank_9_to_8() {
     mpi_rank_9_to_8_t message;
     MPI_Recv(&message, 1, mpi_type_rank_9_to_8, 9, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     return message;

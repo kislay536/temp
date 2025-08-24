@@ -1,4 +1,4 @@
-Starting build at Sat 23 Aug 2025 07:31:11 PM UTC
+Starting build at Sun 24 Aug 2025 06:56:05 PM UTC
 make[1]: Entering directory '/home/riscv_sec/metro-mpi/temp/DPI-MPI-MESH/library'
 Elaborating with DPI...
 verilator -cc alu_tile_noc.v calculator.v intermediate.v terminate.v \
@@ -33,6 +33,15 @@ Duplicate hash(es) found at level 2:
 PARTITION ANALYSIS REPORT
 Found 9 partition instances of module 'alu_tile_noc'
   --> Original source name: 'alu_tile_noc'
+Debug 1 alu_tile_noc
+
+[Metro-MPI] Collecting source files for partition 'alu_tile_noc'...
+  --> Found 2 unique source files:
+    - alu_tile_noc.v
+    - terminate.v
+
+[Metro-MPI] Generating Makefile for partition 'alu_tile_noc'...
+  --> Successfully wrote Makefile to 'metro_mpi/Makefile.alu_tile_noc'
 Parent Module: 'intermediate' (Hier: $root.calculator.int_con)
 
 Instance: t0_0
@@ -452,224 +461,13 @@ Successfully wrote JSON report to metro_mpi/partition_report.json
   --> Reading original parent module from: intermediate.v
   --> Successfully wrote modified parent to 'metro_mpi/modified_intermediate.v'
 
---- [Metro-MPI] P2P Communication Links (Grouped by Sender -> Receiver) ---
-
-=======================================================
-== Links from RANK 0 to RANK 1
-=======================================================
-t0_0({1}, host_in_a, P2P, 64) <- intermediate({0}, a)
-t0_0({1}, host_in_b, P2P, 64) <- intermediate({0}, b)
-
-=======================================================
-== Links from RANK 1 to RANK 0
-=======================================================
-intermediate({0}, logic, P2P, 64) <- t0_0({1}, host_out_a)
-intermediate({0}, logic, P2P, 1) <- t0_0({1}, host_out_valid)
-
-=======================================================
-== Links from RANK 1 to RANK 2
-=======================================================
-t0_1({2}, in_a_w, P2P, 64) <- t0_0({1}, out_a_e)
-t0_1({2}, in_b_w, P2P, 64) <- t0_0({1}, out_b_e)
-t0_1({2}, in_ctrl_w, P2P, 16) <- t0_0({1}, out_ctrl_e)
-t0_1({2}, in_valid_w, P2P, 1) <- t0_0({1}, out_valid_e)
-
-=======================================================
-== Links from RANK 1 to RANK 4
-=======================================================
-t1_0({4}, in_a_n, P2P, 64) <- t0_0({1}, out_a_s)
-t1_0({4}, in_b_n, P2P, 64) <- t0_0({1}, out_b_s)
-t1_0({4}, in_ctrl_n, P2P, 16) <- t0_0({1}, out_ctrl_s)
-t1_0({4}, in_valid_n, P2P, 1) <- t0_0({1}, out_valid_s)
-
-=======================================================
-== Links from RANK 2 to RANK 1
-=======================================================
-t0_0({1}, in_a_e, P2P, 64) <- t0_1({2}, out_a_w)
-t0_0({1}, in_b_e, P2P, 64) <- t0_1({2}, out_b_w)
-t0_0({1}, in_ctrl_e, P2P, 16) <- t0_1({2}, out_ctrl_w)
-t0_0({1}, in_valid_e, P2P, 1) <- t0_1({2}, out_valid_w)
-
-=======================================================
-== Links from RANK 2 to RANK 3
-=======================================================
-t0_2({3}, in_a_w, P2P, 64) <- t0_1({2}, out_a_e)
-t0_2({3}, in_b_w, P2P, 64) <- t0_1({2}, out_b_e)
-t0_2({3}, in_ctrl_w, P2P, 16) <- t0_1({2}, out_ctrl_e)
-t0_2({3}, in_valid_w, P2P, 1) <- t0_1({2}, out_valid_e)
-
-=======================================================
-== Links from RANK 2 to RANK 5
-=======================================================
-t1_1({5}, in_a_n, P2P, 64) <- t0_1({2}, out_a_s)
-t1_1({5}, in_b_n, P2P, 64) <- t0_1({2}, out_b_s)
-t1_1({5}, in_ctrl_n, P2P, 16) <- t0_1({2}, out_ctrl_s)
-t1_1({5}, in_valid_n, P2P, 1) <- t0_1({2}, out_valid_s)
-
-=======================================================
-== Links from RANK 3 to RANK 2
-=======================================================
-t0_1({2}, in_a_e, P2P, 64) <- t0_2({3}, out_a_w)
-t0_1({2}, in_b_e, P2P, 64) <- t0_2({3}, out_b_w)
-t0_1({2}, in_ctrl_e, P2P, 16) <- t0_2({3}, out_ctrl_w)
-t0_1({2}, in_valid_e, P2P, 1) <- t0_2({3}, out_valid_w)
-
-=======================================================
-== Links from RANK 3 to RANK 6
-=======================================================
-t1_2({6}, in_a_n, P2P, 64) <- t0_2({3}, out_a_s)
-t1_2({6}, in_b_n, P2P, 64) <- t0_2({3}, out_b_s)
-t1_2({6}, in_ctrl_n, P2P, 16) <- t0_2({3}, out_ctrl_s)
-t1_2({6}, in_valid_n, P2P, 1) <- t0_2({3}, out_valid_s)
-
-=======================================================
-== Links from RANK 4 to RANK 1
-=======================================================
-t0_0({1}, in_a_s, P2P, 64) <- t1_0({4}, out_a_n)
-t0_0({1}, in_b_s, P2P, 64) <- t1_0({4}, out_b_n)
-t0_0({1}, in_ctrl_s, P2P, 16) <- t1_0({4}, out_ctrl_n)
-t0_0({1}, in_valid_s, P2P, 1) <- t1_0({4}, out_valid_n)
-
-=======================================================
-== Links from RANK 4 to RANK 5
-=======================================================
-t1_1({5}, in_a_w, P2P, 64) <- t1_0({4}, out_a_e)
-t1_1({5}, in_b_w, P2P, 64) <- t1_0({4}, out_b_e)
-t1_1({5}, in_ctrl_w, P2P, 16) <- t1_0({4}, out_ctrl_e)
-t1_1({5}, in_valid_w, P2P, 1) <- t1_0({4}, out_valid_e)
-
-=======================================================
-== Links from RANK 4 to RANK 7
-=======================================================
-t2_0({7}, in_a_n, P2P, 64) <- t1_0({4}, out_a_s)
-t2_0({7}, in_b_n, P2P, 64) <- t1_0({4}, out_b_s)
-t2_0({7}, in_ctrl_n, P2P, 16) <- t1_0({4}, out_ctrl_s)
-t2_0({7}, in_valid_n, P2P, 1) <- t1_0({4}, out_valid_s)
-
-=======================================================
-== Links from RANK 5 to RANK 2
-=======================================================
-t0_1({2}, in_a_s, P2P, 64) <- t1_1({5}, out_a_n)
-t0_1({2}, in_b_s, P2P, 64) <- t1_1({5}, out_b_n)
-t0_1({2}, in_ctrl_s, P2P, 16) <- t1_1({5}, out_ctrl_n)
-t0_1({2}, in_valid_s, P2P, 1) <- t1_1({5}, out_valid_n)
-
-=======================================================
-== Links from RANK 5 to RANK 4
-=======================================================
-t1_0({4}, in_a_e, P2P, 64) <- t1_1({5}, out_a_w)
-t1_0({4}, in_b_e, P2P, 64) <- t1_1({5}, out_b_w)
-t1_0({4}, in_ctrl_e, P2P, 16) <- t1_1({5}, out_ctrl_w)
-t1_0({4}, in_valid_e, P2P, 1) <- t1_1({5}, out_valid_w)
-
-=======================================================
-== Links from RANK 5 to RANK 6
-=======================================================
-t1_2({6}, in_a_w, P2P, 64) <- t1_1({5}, out_a_e)
-t1_2({6}, in_b_w, P2P, 64) <- t1_1({5}, out_b_e)
-t1_2({6}, in_ctrl_w, P2P, 16) <- t1_1({5}, out_ctrl_e)
-t1_2({6}, in_valid_w, P2P, 1) <- t1_1({5}, out_valid_e)
-
-=======================================================
-== Links from RANK 5 to RANK 8
-=======================================================
-t2_1({8}, in_a_n, P2P, 64) <- t1_1({5}, out_a_s)
-t2_1({8}, in_b_n, P2P, 64) <- t1_1({5}, out_b_s)
-t2_1({8}, in_ctrl_n, P2P, 16) <- t1_1({5}, out_ctrl_s)
-t2_1({8}, in_valid_n, P2P, 1) <- t1_1({5}, out_valid_s)
-
-=======================================================
-== Links from RANK 6 to RANK 3
-=======================================================
-t0_2({3}, in_a_s, P2P, 64) <- t1_2({6}, out_a_n)
-t0_2({3}, in_b_s, P2P, 64) <- t1_2({6}, out_b_n)
-t0_2({3}, in_ctrl_s, P2P, 16) <- t1_2({6}, out_ctrl_n)
-t0_2({3}, in_valid_s, P2P, 1) <- t1_2({6}, out_valid_n)
-
-=======================================================
-== Links from RANK 6 to RANK 5
-=======================================================
-t1_1({5}, in_a_e, P2P, 64) <- t1_2({6}, out_a_w)
-t1_1({5}, in_b_e, P2P, 64) <- t1_2({6}, out_b_w)
-t1_1({5}, in_ctrl_e, P2P, 16) <- t1_2({6}, out_ctrl_w)
-t1_1({5}, in_valid_e, P2P, 1) <- t1_2({6}, out_valid_w)
-
-=======================================================
-== Links from RANK 6 to RANK 9
-=======================================================
-t2_2({9}, in_a_n, P2P, 64) <- t1_2({6}, out_a_s)
-t2_2({9}, in_b_n, P2P, 64) <- t1_2({6}, out_b_s)
-t2_2({9}, in_ctrl_n, P2P, 16) <- t1_2({6}, out_ctrl_s)
-t2_2({9}, in_valid_n, P2P, 1) <- t1_2({6}, out_valid_s)
-
-=======================================================
-== Links from RANK 7 to RANK 4
-=======================================================
-t1_0({4}, in_a_s, P2P, 64) <- t2_0({7}, out_a_n)
-t1_0({4}, in_b_s, P2P, 64) <- t2_0({7}, out_b_n)
-t1_0({4}, in_ctrl_s, P2P, 16) <- t2_0({7}, out_ctrl_n)
-t1_0({4}, in_valid_s, P2P, 1) <- t2_0({7}, out_valid_n)
-
-=======================================================
-== Links from RANK 7 to RANK 8
-=======================================================
-t2_1({8}, in_a_w, P2P, 64) <- t2_0({7}, out_a_e)
-t2_1({8}, in_b_w, P2P, 64) <- t2_0({7}, out_b_e)
-t2_1({8}, in_ctrl_w, P2P, 16) <- t2_0({7}, out_ctrl_e)
-t2_1({8}, in_valid_w, P2P, 1) <- t2_0({7}, out_valid_e)
-
-=======================================================
-== Links from RANK 8 to RANK 5
-=======================================================
-t1_1({5}, in_a_s, P2P, 64) <- t2_1({8}, out_a_n)
-t1_1({5}, in_b_s, P2P, 64) <- t2_1({8}, out_b_n)
-t1_1({5}, in_ctrl_s, P2P, 16) <- t2_1({8}, out_ctrl_n)
-t1_1({5}, in_valid_s, P2P, 1) <- t2_1({8}, out_valid_n)
-
-=======================================================
-== Links from RANK 8 to RANK 7
-=======================================================
-t2_0({7}, in_a_e, P2P, 64) <- t2_1({8}, out_a_w)
-t2_0({7}, in_b_e, P2P, 64) <- t2_1({8}, out_b_w)
-t2_0({7}, in_ctrl_e, P2P, 16) <- t2_1({8}, out_ctrl_w)
-t2_0({7}, in_valid_e, P2P, 1) <- t2_1({8}, out_valid_w)
-
-=======================================================
-== Links from RANK 8 to RANK 9
-=======================================================
-t2_2({9}, in_a_w, P2P, 64) <- t2_1({8}, out_a_e)
-t2_2({9}, in_b_w, P2P, 64) <- t2_1({8}, out_b_e)
-t2_2({9}, in_ctrl_w, P2P, 16) <- t2_1({8}, out_ctrl_e)
-t2_2({9}, in_valid_w, P2P, 1) <- t2_1({8}, out_valid_e)
-
-=======================================================
-== Links from RANK 9 to RANK 6
-=======================================================
-t1_2({6}, in_a_s, P2P, 64) <- t2_2({9}, out_a_n)
-t1_2({6}, in_b_s, P2P, 64) <- t2_2({9}, out_b_n)
-t1_2({6}, in_ctrl_s, P2P, 16) <- t2_2({9}, out_ctrl_n)
-t1_2({6}, in_valid_s, P2P, 1) <- t2_2({9}, out_valid_n)
-
-=======================================================
-== Links from RANK 9 to RANK 8
-=======================================================
-t2_1({8}, in_a_e, P2P, 64) <- t2_2({9}, out_a_w)
-t2_1({8}, in_b_e, P2P, 64) <- t2_2({9}, out_b_w)
-t2_1({8}, in_ctrl_e, P2P, 16) <- t2_2({9}, out_ctrl_w)
-t2_1({8}, in_valid_e, P2P, 1) <- t2_2({9}, out_valid_w)
-
-
 [Metro-MPI] Successfully generated metro_mpi/metro_mpi.cpp
-
-[Metro-MPI] Generating Partition Main Executable for module: alu_tile_noc
-  --> Reading partition data from: metro_mpi/partition_report.json
-[Metro-MPI] Generating standalone main file: metro_mpi/alu_tile_noc_main.cpp
-  --> Generation of alu_tile_noc_main.cpp complete.
+Debug 2 alu_tile_noc
 
 MetroMPI: Partition Analysis Finished.
 [Verilator.cpp] Returned from Metro_MPI version 1 and Design 1
-- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-22-g13bc4af8e (mod)
+- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036-28-g09318542b (mod)
 - Verilator: Built from 0.153 MB sources in 5 modules, into 0.598 MB in 10 C++ files needing 0.000 MB
-- Verilator: Walltime 0.256 s (elab=0.008, cvt=0.211, bld=0.000); cpu 0.253 s on 1 threads; alloced 29.906 MB
+- Verilator: Walltime 0.129 s (elab=0.004, cvt=0.106, bld=0.000); cpu 0.129 s on 1 threads; alloced 29.934 MB
 make[1]: Leaving directory '/home/riscv_sec/metro-mpi/temp/DPI-MPI-MESH/library'
-Build finished at Sat 23 Aug 2025 07:31:12 PM UTC
+Build finished at Sun 24 Aug 2025 06:56:05 PM UTC
