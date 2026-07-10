@@ -1,6 +1,0 @@
-digraph G {
-  "$root" -> "$root.u_add";
-  "$root" -> "$root.u_sub";
-  "$root" -> "$root.u_mul";
-  "$root" -> "$root.u_div";
-}
