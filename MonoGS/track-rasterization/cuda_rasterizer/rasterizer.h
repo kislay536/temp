@@ -47,6 +47,8 @@ namespace CudaRasterizer
 			const float* projmatrix,
 			const float* cam_pos,
 			const float tan_fovx, float tan_fovy,
+			const int* pixel_range,           // SPLATONIC: tile prefix-sum offsets; nullptr → dense
+			const int* pixel_coords,          // SPLATONIC: packed (x,y) per sparse pixel (int* of int2)
 			const bool prefiltered,
 			float* out_color,
 			float* out_depth,
