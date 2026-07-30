@@ -214,6 +214,8 @@ int CudaRasterizer::Rasterizer::forward(
 	const float* projmatrix,
 	const float* cam_pos,
 	const float tan_fovx, float tan_fovy,
+	const int* pixel_range,
+	const int* pixel_coords,
 	const bool prefiltered,
 	float* out_color,
 	float* out_depth,
@@ -247,6 +249,20 @@ int CudaRasterizer::Rasterizer::forward(
 		throw std::runtime_error("For non-RGB, provide precomputed Gaussian colors!");
 	}
 
+	// SPLATONIC: BinningState is now statically sized (MAX_NUM_RENDERED) and must be
+	// constructed before FORWARD::preprocess() runs, since preprocessCUDA writes packed
+	// keys directly into its point_list_keys_unsorted/point_list_unsorted buffers.
+	size_t binning_chunk_size = required<BinningState>(MAX_NUM_RENDERED);
+	char* binning_chunkptr = binningBuffer(binning_chunk_size);
+	BinningState binningState = BinningState::fromChunk(binning_chunkptr, MAX_NUM_RENDERED);
+
+	// SPLATONIC: atomic counter for number of (Gaussian, pixel) pairs emitted by
+	// preprocessCUDA's key-emission logic (unused until CU3.6; kernel body is
+	// unchanged as of CU3.2 and does not write through this pointer yet).
+	int* num_rendered_dev;
+	CHECK_CUDA(cudaMalloc(&num_rendered_dev, sizeof(int)), debug);
+	CHECK_CUDA(cudaMemset(num_rendered_dev, 0, sizeof(int)), debug);
+
 	// Run preprocessing per-Gaussian (transformation, bounding, conversion of SHs to RGB)
 	CHECK_CUDA(FORWARD::preprocess(
 		P, D, M,
@@ -271,6 +287,11 @@ int CudaRasterizer::Rasterizer::forward(
 		geomState.rgb,
 		geomState.conic_opacity,
 		tile_grid,
+		pixel_range,
+		reinterpret_cast<const int2*>(pixel_coords),
+		num_rendered_dev,
+		binningState.point_list_keys_unsorted,
+		reinterpret_cast<int*>(binningState.point_list_unsorted),
 		geomState.tiles_touched,
 		prefiltered
 	), debug)
@@ -282,10 +303,6 @@ int CudaRasterizer::Rasterizer::forward(
 	// Retrieve total number of Gaussian instances to launch and resize aux buffers
 	int num_rendered;
 	CHECK_CUDA(cudaMemcpy(&num_rendered, geomState.point_offsets + P - 1, sizeof(int), cudaMemcpyDeviceToHost), debug);
-
-	size_t binning_chunk_size = required<BinningState>(num_rendered);
-	char* binning_chunkptr = binningBuffer(binning_chunk_size);
-	BinningState binningState = BinningState::fromChunk(binning_chunkptr, num_rendered);
 
 	// For each instance to be rendered, produce adequate [ tile | depth ] key 
 	// and corresponding dublicated Gaussian indices to be sorted
