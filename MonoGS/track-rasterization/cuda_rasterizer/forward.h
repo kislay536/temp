@@ -68,7 +68,9 @@ namespace FORWARD
 		const float* depth,
 	    float* out_depth,
 		float* out_opacity,
-		int* n_touched);
+		int* n_touched,
+		const int2* pixel_coords,  // SPLATONIC: sparse pixel coords (int2 per pixel)
+		int num_pixels);           // SPLATONIC: total number of sparse pixels to render
 }
 
 
