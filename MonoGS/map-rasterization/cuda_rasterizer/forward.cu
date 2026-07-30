@@ -179,7 +179,12 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	float4* conic_opacity,
 	const dim3 grid,
 	uint32_t* tiles_touched,
-	bool prefiltered)
+	bool prefiltered,
+	const int* pixel_range,
+	const int2* pixel_coords,
+	int* num_rendered_ptr,
+	uint64_t* gaussian_keys_unsorted,
+	int* gaussian_values_unsorted)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
@@ -448,6 +453,11 @@ void FORWARD::preprocess(int P, int D, int M,
 	float* rgb,
 	float4* conic_opacity,
 	const dim3 grid,
+	const int* pixel_range,
+	const int2* pixel_coords,
+	int* num_rendered_ptr,
+	uint64_t* gaussian_keys_unsorted,
+	int* gaussian_values_unsorted,
 	uint32_t* tiles_touched,
 	bool prefiltered)
 {
@@ -476,6 +486,11 @@ void FORWARD::preprocess(int P, int D, int M,
 		conic_opacity,
 		grid,
 		tiles_touched,
-		prefiltered
+		prefiltered,
+		pixel_range,
+		pixel_coords,
+		num_rendered_ptr,
+		gaussian_keys_unsorted,
+		gaussian_values_unsorted
 		);
 }
