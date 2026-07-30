@@ -10,9 +10,10 @@ from gui import gui_utils
 from utils.camera_utils import Camera
 from utils.eval_utils import eval_ate, save_gaussians
 from utils.logging_utils import Log
+from utils.mask_utils import generate_random_mask, get_pixel_info
 from utils.multiprocessing_utils import clone_obj
 from utils.pose_utils import update_pose
-from utils.slam_utils import get_loss_tracking, get_median_depth
+from utils.slam_utils import get_loss_tracking, get_loss_tracking_sparse, get_median_depth
 
 
 class FrontEnd(mp.Process):
@@ -129,6 +130,17 @@ class FrontEnd(mp.Process):
         prev = self.cameras[cur_frame_idx - self.use_every_n_frames]
         viewpoint.update_RT(prev.R, prev.T)
 
+        use_splatonic = self.config["Training"].get("use_splatonic", False)
+        tile_size = self.config["Training"].get("tracking_tile_size", 16)
+
+        if use_splatonic:
+            H, W = viewpoint.image_height, viewpoint.image_width
+            pixel_mask, pixel_range, pixel_coords = generate_random_mask(
+                (H, W), tile_size=tile_size, device="cuda"
+            )
+        else:
+            pixel_mask = pixel_range = pixel_coords = None
+
         opt_params = []
         opt_params.append(
             {
@@ -162,7 +174,10 @@ class FrontEnd(mp.Process):
         pose_optimizer = torch.optim.Adam(opt_params)
         for tracking_itr in range(self.tracking_itr_num):
             render_pkg = render(
-                viewpoint, self.gaussians, self.pipeline_params, self.background
+                viewpoint, self.gaussians, self.pipeline_params, self.background,
+                pixel_range=pixel_range,
+                pixel_coords=pixel_coords,
+                use_track_rasterizer=use_splatonic,
             )
             image, depth, opacity = (
                 render_pkg["render"],
@@ -170,8 +185,9 @@ class FrontEnd(mp.Process):
                 render_pkg["opacity"],
             )
             pose_optimizer.zero_grad()
-            loss_tracking = get_loss_tracking(
-                self.config, image, depth, opacity, viewpoint
+            loss_tracking = get_loss_tracking_sparse(
+                self.config, image, depth, opacity, viewpoint,
+                pixel_mask=pixel_mask,
             )
             loss_tracking.backward()
 
