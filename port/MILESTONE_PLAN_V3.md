@@ -955,11 +955,18 @@ Also update the `FORWARD::preprocess()` wrapper function at the bottom of `forwa
 
 **Files changed (×2):** `*/cuda_rasterizer/rasterizer_impl.cu`
 
-**Ownership (authoritative):** `gaussian_keys_unsorted` and `gaussian_values_unsorted` are **not** new buffers and do **not** belong to `GeometryState`. They are the existing `BinningState` fields `point_list_keys_unsorted` (`uint64_t*`) and `point_list_unsorted` (`uint32_t*`), populated directly by `preprocessCUDA` instead of by `duplicateWithKeys` (removed in CU4.2). Their allocation, sizing, and lifetime remain exactly whatever `BinningState::fromChunk()` already provides today (chunk-allocated via the caller-supplied `binningBuffer()` callback, freed by that same caller) — CU4.3 only changes the *size argument* passed to it, from `num_rendered` to `MAX_NUM_RENDERED`. No separate `cudaMalloc`/`cudaFree` is introduced for these two buffers.
+**Ownership (authoritative):** `gaussian_keys_unsorted` and `gaussian_values_unsorted` are **not** new buffers and do **not** belong to `GeometryState`. They are the existing `BinningState` fields `point_list_keys_unsorted` (`uint64_t*`) and `point_list_unsorted` (`uint32_t*`), populated directly by `preprocessCUDA` instead of by `duplicateWithKeys` (removed in CU4.2). Their lifetime remains exactly whatever `BinningState::fromChunk()` already provides today (chunk-allocated via the caller-supplied `binningBuffer()` callback, freed by that same caller). No separate `cudaMalloc`/`cudaFree` is introduced for these two buffers. **The static (`MAX_NUM_RENDERED`) sizing change is made here, in CU3.2, not in CU4.3** — the sequencing move below is impossible while sizing still depends on `num_rendered` (a value that does not exist until after `FORWARD::preprocess()` returns), so the move and the sizing change are one atomic step. CU4.3 is narrowed accordingly to only the now-dead `GeometryState` cleanup that this step leaves behind.
 
 **In `Rasterizer::forward()`:**
 
-1. **Required sequencing:** move the `binningBuffer()` chunk request and `BinningState::fromChunk()` call — currently issued *after* `FORWARD::preprocess()`, once `num_rendered` is known from the old prefix-sum path — to *before* the `FORWARD::preprocess()` call. This is safe and necessary once CU4.3 makes `BinningState`'s size static (`MAX_NUM_RENDERED`): sizing no longer depends on anything `preprocessCUDA` produces, and `preprocessCUDA` itself now needs `binningState.point_list_keys_unsorted`/`point_list_unsorted` to already be valid device pointers before it launches.
+1. **Required sequencing + sizing (one atomic change):** change the binning buffer size from `required<BinningState>(num_rendered)` to `required<BinningState>(MAX_NUM_RENDERED)` (and the matching `BinningState::fromChunk()` call to take `MAX_NUM_RENDERED` instead of `num_rendered`), and move the `binningBuffer()` chunk request and `BinningState::fromChunk()` call — currently issued *after* `FORWARD::preprocess()`, once `num_rendered` is known from the old prefix-sum path — to *before* the `FORWARD::preprocess()` call. These two edits must land together: the move is only safe once sizing no longer depends on anything `preprocessCUDA` produces, and `preprocessCUDA` itself now needs `binningState.point_list_keys_unsorted`/`point_list_unsorted` to already be valid device pointers before it launches.
+```cpp
+// OLD (dynamic, based on prefix-sum result — no longer valid once the call moves):
+size_t binning_chunk_size = required<BinningState>(num_rendered);
+
+// NEW (static, based on MAX_NUM_RENDERED):
+size_t binning_chunk_size = required<BinningState>(MAX_NUM_RENDERED);
+```
 2. **Required parameter types:** `preprocessCUDA`'s `gaussian_keys_unsorted` parameter is `uint64_t*` — bind it directly to `binningState.point_list_keys_unsorted` (same type, no cast). `preprocessCUDA`'s `gaussian_values_unsorted` parameter is `int*` (per the FORWARD::preprocess() interface committed in CU1.2); `binningState.point_list_unsorted` is `uint32_t*`. Bind with an explicit `reinterpret_cast<int*>(binningState.point_list_unsorted)` at the call site — do not change the already-committed CU1.2 interface type.
 
 ```cpp
@@ -1166,26 +1173,18 @@ CHECK_CUDA(, debug);
 
 ---
 
-### CU4.3 — Switch to Static Buffer Allocation
+### CU4.3 — Remove Dead GeometryState Allocations
 
 **Files changed (×2):** `*/cuda_rasterizer/rasterizer_impl.cu`
 
-**Replace the dynamic binning buffer size:**
-```cpp
-// OLD (dynamic, based on prefix-sum result):
-size_t binning_chunk_size = required<BinningState>(num_rendered);
+**Context:** `BinningState`'s static (`MAX_NUM_RENDERED`) sizing was already established in CU3.2, since the sequencing move performed there required it. This step only removes what that earlier change left dead.
 
-// NEW (static, based on MAX_NUM_RENDERED):
-size_t binning_chunk_size = required<BinningState>(MAX_NUM_RENDERED);
-```
-
-Also update `BinningState::fromChunk()` if it uses the count to size key/value arrays — pass `MAX_NUM_RENDERED` instead of `num_rendered`.
+Remove the now-unused `geomState.tiles_touched` and `geomState.point_offsets` allocations from `GeometryState::fromChunk()` — they existed solely to support the prefix-sum path (`InclusiveSum`, removed in CU4.1) and the old dynamic `BinningState` sizing (removed in CU3.2).
 
 **Review checklist:**  
-- [ ] `MAX_NUM_RENDERED` is defined in `config.h` and visible in `rasterizer_impl.cu` (add `#include "config.h"` if missing)  
-- [ ] `geomState.tiles_touched` and `geomState.point_offsets` allocations can now be removed from `GeometryState::fromChunk()` since they are dead  
+- [ ] No remaining reference to `geomState.point_offsets` anywhere in `rasterizer_impl.cu` (CU4.1 already removed its only consumer)  
 
-**Commit name:** `feat(cuda-impl): switch to static MAX_NUM_RENDERED binning buffer`
+**Commit name:** `feat(cuda-impl): remove dead GeometryState tiles_touched/point_offsets allocations`
 
 ---
 
