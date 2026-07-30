@@ -951,28 +951,34 @@ Also update the `FORWARD::preprocess()` wrapper function at the bottom of `forwa
 
 ---
 
-### CU3.2 — Allocate num_rendered_ptr and Key Buffers
+### CU3.2 — Bind Key Buffers to BinningState, Allocate num_rendered_ptr
 
 **Files changed (×2):** `*/cuda_rasterizer/rasterizer_impl.cu`
 
-**In `Rasterizer::forward()`, add allocations:**
-```cpp
-// Allocate static key sort buffers (static size = MAX_NUM_RENDERED)
-// These replace the dynamically-sized point_list buffers
-CHECK_CUDA(cudaMalloc(&geomState.gaussian_keys_unsorted,
-                      MAX_NUM_RENDERED * sizeof(uint64_t)), debug);
-CHECK_CUDA(cudaMalloc(&geomState.gaussian_values_unsorted,
-                      MAX_NUM_RENDERED * sizeof(int)), debug);
+**Ownership (authoritative):** `gaussian_keys_unsorted` and `gaussian_values_unsorted` are **not** new buffers and do **not** belong to `GeometryState`. They are the existing `BinningState` fields `point_list_keys_unsorted` (`uint64_t*`) and `point_list_unsorted` (`uint32_t*`), populated directly by `preprocessCUDA` instead of by `duplicateWithKeys` (removed in CU4.2). Their allocation, sizing, and lifetime remain exactly whatever `BinningState::fromChunk()` already provides today (chunk-allocated via the caller-supplied `binningBuffer()` callback, freed by that same caller) — CU4.3 only changes the *size argument* passed to it, from `num_rendered` to `MAX_NUM_RENDERED`. No separate `cudaMalloc`/`cudaFree` is introduced for these two buffers.
 
-// Allocate atomic counter for number of (Gaussian, pixel) pairs emitted
+**In `Rasterizer::forward()`:**
+
+1. **Required sequencing:** move the `binningBuffer()` chunk request and `BinningState::fromChunk()` call — currently issued *after* `FORWARD::preprocess()`, once `num_rendered` is known from the old prefix-sum path — to *before* the `FORWARD::preprocess()` call. This is safe and necessary once CU4.3 makes `BinningState`'s size static (`MAX_NUM_RENDERED`): sizing no longer depends on anything `preprocessCUDA` produces, and `preprocessCUDA` itself now needs `binningState.point_list_keys_unsorted`/`point_list_unsorted` to already be valid device pointers before it launches.
+2. **Required parameter types:** `preprocessCUDA`'s `gaussian_keys_unsorted` parameter is `uint64_t*` — bind it directly to `binningState.point_list_keys_unsorted` (same type, no cast). `preprocessCUDA`'s `gaussian_values_unsorted` parameter is `int*` (per the FORWARD::preprocess() interface committed in CU1.2); `binningState.point_list_unsorted` is `uint32_t*`. Bind with an explicit `reinterpret_cast<int*>(binningState.point_list_unsorted)` at the call site — do not change the already-committed CU1.2 interface type.
+
+```cpp
+// preprocessCUDA writes packed keys directly into the (now statically-sized)
+// BinningState buffers, replacing duplicateWithKeys (removed in CU4.2).
+// At the FORWARD::preprocess() call site, pass:
+//   binningState.point_list_keys_unsorted                        -> gaussian_keys_unsorted   (uint64_t*, no cast)
+//   reinterpret_cast<int*>(binningState.point_list_unsorted)      -> gaussian_values_unsorted (uint32_t* source, int* param)
+
+// Allocate atomic counter for number of (Gaussian, pixel) pairs emitted.
+// This is the only new allocation introduced by CU3.2.
 int* num_rendered_dev;
 CHECK_CUDA(cudaMalloc(&num_rendered_dev, sizeof(int)), debug);
 CHECK_CUDA(cudaMemset(num_rendered_dev, 0, sizeof(int)), debug);
 ```
 
-**Note:** These allocations replace `tiles_touched` and the prefix-sum-based buffer sizing. Do not remove them yet — that is CU4.1 and CU4.2.
+**Note:** `binningState.point_list_keys_unsorted`/`point_list_unsorted` replace `tiles_touched` and the prefix-sum-based buffer sizing as the target of preprocessCUDA's writes. Do not remove `tiles_touched` yet — that is CU4.1 and CU4.2.
 
-**Commit name:** `feat(cuda-preprocess): allocate num_rendered_ptr and key sort buffers`
+**Commit name:** `feat(cuda-preprocess): bind key buffers to BinningState, allocate num_rendered_ptr`
 
 ---
 
