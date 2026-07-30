@@ -8,9 +8,10 @@ from tqdm import tqdm
 from gaussian_splatting.gaussian_renderer import render
 from gaussian_splatting.utils.loss_utils import l1_loss, ssim
 from utils.logging_utils import Log
+from utils.mask_utils import adaptive_random_sampling, get_pixel_info
 from utils.multiprocessing_utils import clone_obj
 from utils.pose_utils import update_pose
-from utils.slam_utils import get_loss_mapping
+from utils.slam_utils import get_loss_mapping, get_loss_mapping_sparse
 
 
 class BackEnd(mp.Process):
@@ -37,6 +38,7 @@ class BackEnd(mp.Process):
         self.current_window = []
         self.initialized = not self.monocular
         self.keyframe_optimizers = None
+        self.map_iter_counter = 0
 
     def set_hyperparams(self):
         self.save_results = self.config["Results"]["save_results"]
@@ -153,9 +155,16 @@ class BackEnd(mp.Process):
                 continue
             random_viewpoint_stack.append(viewpoint)
 
+        FLIP = self.config["Training"].get("flip_ratio", 4)
+        use_splatonic = self.config["Training"].get("use_splatonic", False)
+        tile_size = self.config["Training"].get("mapping_tile_size", 4)
+
         for _ in range(iters):
             self.iteration_count += 1
             self.last_sent += 1
+
+            use_dense = (not use_splatonic) or (self.map_iter_counter % FLIP == 0)
+            self.map_iter_counter += 1
 
             loss_mapping = 0
             viewspace_point_tensor_acm = []
@@ -168,63 +177,112 @@ class BackEnd(mp.Process):
             for cam_idx in range(len(current_window)):
                 viewpoint = viewpoint_stack[cam_idx]
                 keyframes_opt.append(viewpoint)
-                render_pkg = render(
-                    viewpoint, self.gaussians, self.pipeline_params, self.background
-                )
-                (
-                    image,
-                    viewspace_point_tensor,
-                    visibility_filter,
-                    radii,
-                    depth,
-                    opacity,
-                    n_touched,
-                ) = (
-                    render_pkg["render"],
-                    render_pkg["viewspace_points"],
-                    render_pkg["visibility_filter"],
-                    render_pkg["radii"],
-                    render_pkg["depth"],
-                    render_pkg["opacity"],
-                    render_pkg["n_touched"],
-                )
-
-                loss_mapping += get_loss_mapping(
-                    self.config, image, depth, viewpoint, opacity
-                )
-                viewspace_point_tensor_acm.append(viewspace_point_tensor)
-                visibility_filter_acm.append(visibility_filter)
-                radii_acm.append(radii)
-                n_touched_acm.append(n_touched)
+                if use_dense:
+                    render_pkg = render(
+                        viewpoint, self.gaussians, self.pipeline_params, self.background
+                    )
+                    (
+                        image,
+                        viewspace_point_tensor,
+                        visibility_filter,
+                        radii,
+                        depth,
+                        opacity,
+                        n_touched,
+                    ) = (
+                        render_pkg["render"],
+                        render_pkg["viewspace_points"],
+                        render_pkg["visibility_filter"],
+                        render_pkg["radii"],
+                        render_pkg["depth"],
+                        render_pkg["opacity"],
+                        render_pkg["n_touched"],
+                    )
+                    loss_mapping += get_loss_mapping(
+                        self.config, image, depth, viewpoint, opacity
+                    )
+                    viewspace_point_tensor_acm.append(viewspace_point_tensor)
+                    visibility_filter_acm.append(visibility_filter)
+                    radii_acm.append(radii)
+                    n_touched_acm.append(n_touched)
+                else:
+                    gt_image = viewpoint.original_image.cuda()
+                    H, W = gt_image.shape[1], gt_image.shape[2]
+                    num_sparse = max(64, (H * W) // 64)
+                    pixel_mask = adaptive_random_sampling(gt_image, num_sparse)
+                    pixel_range, pixel_coords = get_pixel_info(
+                        pixel_mask, tile_size=tile_size
+                    )
+                    render_pkg = render(
+                        viewpoint, self.gaussians, self.pipeline_params, self.background,
+                        pixel_range=pixel_range,
+                        pixel_coords=pixel_coords,
+                        use_map_rasterizer=True,  # ignored until CU9.1
+                    )
+                    (image, depth, opacity, n_touched) = (
+                        render_pkg["render"],
+                        render_pkg["depth"],
+                        render_pkg["opacity"],
+                        render_pkg["n_touched"],
+                    )
+                    loss_mapping += get_loss_mapping_sparse(
+                        self.config, image, depth, opacity, viewpoint,
+                        pixel_mask=pixel_mask,
+                    )
+                    n_touched_acm.append(n_touched)
 
             for cam_idx in torch.randperm(len(random_viewpoint_stack))[:2]:
                 viewpoint = random_viewpoint_stack[cam_idx]
-                render_pkg = render(
-                    viewpoint, self.gaussians, self.pipeline_params, self.background
-                )
-                (
-                    image,
-                    viewspace_point_tensor,
-                    visibility_filter,
-                    radii,
-                    depth,
-                    opacity,
-                    n_touched,
-                ) = (
-                    render_pkg["render"],
-                    render_pkg["viewspace_points"],
-                    render_pkg["visibility_filter"],
-                    render_pkg["radii"],
-                    render_pkg["depth"],
-                    render_pkg["opacity"],
-                    render_pkg["n_touched"],
-                )
-                loss_mapping += get_loss_mapping(
-                    self.config, image, depth, viewpoint, opacity
-                )
-                viewspace_point_tensor_acm.append(viewspace_point_tensor)
-                visibility_filter_acm.append(visibility_filter)
-                radii_acm.append(radii)
+                if use_dense:
+                    render_pkg = render(
+                        viewpoint, self.gaussians, self.pipeline_params, self.background
+                    )
+                    (
+                        image,
+                        viewspace_point_tensor,
+                        visibility_filter,
+                        radii,
+                        depth,
+                        opacity,
+                        n_touched,
+                    ) = (
+                        render_pkg["render"],
+                        render_pkg["viewspace_points"],
+                        render_pkg["visibility_filter"],
+                        render_pkg["radii"],
+                        render_pkg["depth"],
+                        render_pkg["opacity"],
+                        render_pkg["n_touched"],
+                    )
+                    loss_mapping += get_loss_mapping(
+                        self.config, image, depth, viewpoint, opacity
+                    )
+                    viewspace_point_tensor_acm.append(viewspace_point_tensor)
+                    visibility_filter_acm.append(visibility_filter)
+                    radii_acm.append(radii)
+                else:
+                    gt_image = viewpoint.original_image.cuda()
+                    H, W = gt_image.shape[1], gt_image.shape[2]
+                    num_sparse = max(64, (H * W) // 64)
+                    pixel_mask = adaptive_random_sampling(gt_image, num_sparse)
+                    pixel_range, pixel_coords = get_pixel_info(
+                        pixel_mask, tile_size=tile_size
+                    )
+                    render_pkg = render(
+                        viewpoint, self.gaussians, self.pipeline_params, self.background,
+                        pixel_range=pixel_range,
+                        pixel_coords=pixel_coords,
+                        use_map_rasterizer=True,  # ignored until CU9.1
+                    )
+                    (image, depth, opacity) = (
+                        render_pkg["render"],
+                        render_pkg["depth"],
+                        render_pkg["opacity"],
+                    )
+                    loss_mapping += get_loss_mapping_sparse(
+                        self.config, image, depth, opacity, viewpoint,
+                        pixel_mask=pixel_mask,
+                    )
 
             scaling = self.gaussians.get_scaling
             isotropic_loss = torch.abs(scaling - scaling.mean(dim=1).view(-1, 1))
