@@ -29,12 +29,18 @@ def render(
     scaling_modifier=1.0,
     override_color=None,
     mask=None,
+    pixel_range=None,
+    pixel_coords=None,
+    use_track_rasterizer=False,
+    use_map_rasterizer=False,
 ):
     """
     Render the scene.
 
     Background tensor (bg_color) must be on GPU!
     """
+    # STUB: real sparse dispatch added in CU9.1
+    # Always uses dense rasterizer until then; pixel_range/pixel_coords/use_*_rasterizer are ignored here.
 
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
     if pc.get_xyz.shape[0] == 0:
