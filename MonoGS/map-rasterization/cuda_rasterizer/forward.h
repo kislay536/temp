@@ -44,6 +44,11 @@ namespace FORWARD
 		float* colors,
 		float4* conic_opacity,
 		const dim3 grid,
+		const int* pixel_range,            // SPLATONIC: tile prefix-sum offsets
+		const int2* pixel_coords,          // SPLATONIC: sparse pixel coords (int2 per pixel)
+		int* num_rendered_ptr,             // SPLATONIC: atomic counter for key slots used
+		uint64_t* gaussian_keys_unsorted,  // SPLATONIC: upper 32=pixel idx, lower 32=depth bits
+		int* gaussian_values_unsorted,     // SPLATONIC: Gaussian index per key slot
 		uint32_t* tiles_touched,
 		bool prefiltered);
 
