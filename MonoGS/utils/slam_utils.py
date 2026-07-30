@@ -128,6 +128,88 @@ def get_loss_mapping_rgbd(config, image, depth, viewpoint, initialization=False)
     return alpha * l1_rgb.mean() + (1 - alpha) * l1_depth.mean()
 
 
+def get_loss_tracking_sparse(config, image, depth, opacity, viewpoint, pixel_mask=None):
+    """Tracking loss over sparse pixels selected by pixel_mask.
+
+    Falls back to the dense get_loss_tracking when pixel_mask is None.
+    pixel_mask: (H, W) bool tensor on CUDA. When provided, only the selected
+    pixels contribute to the loss. combined_mask additionally gates on
+    viewpoint.grad_mask so noisy/uninformative pixels are suppressed.
+    """
+    if pixel_mask is None:
+        return get_loss_tracking(config, image, depth, opacity, viewpoint)
+
+    image_ab = torch.exp(viewpoint.exposure_a) * image + viewpoint.exposure_b
+    gt_image = viewpoint.original_image.cuda()
+    combined_mask = pixel_mask & viewpoint.grad_mask[0].bool()
+
+    if config["Training"]["monocular"]:
+        loss = (
+            opacity[:, combined_mask]
+            * torch.abs(image_ab[:, combined_mask] - gt_image[:, combined_mask])
+        ).mean()
+        return loss
+
+    alpha = config["Training"].get("alpha", 0.95)
+    rgb_mask = gt_image.sum(dim=0) > config["Training"]["rgb_boundary_threshold"]
+    valid = combined_mask & rgb_mask
+    l1_rgb = (
+        opacity[:, valid] * torch.abs(image_ab[:, valid] - gt_image[:, valid])
+    ).mean()
+
+    # NOTE: viewpoint.depth is a numpy array; .cuda() will fail for RGBD datasets.
+    # Monocular datasets (primary target) return above and never reach this branch.
+    gt_depth = viewpoint.depth.cuda()
+    depth_mask = (gt_depth > 0) & combined_mask[0]
+    opacity_mask = (opacity[0] > 0.95) & combined_mask
+    d_mask = depth_mask & opacity_mask
+    l1_d = (
+        torch.abs(depth[0, d_mask] - gt_depth[d_mask]).mean()
+        if d_mask.any()
+        else torch.tensor(0.0, device=image.device)
+    )
+    return alpha * l1_rgb + (1.0 - alpha) * l1_d
+
+
+def get_loss_mapping_sparse(config, image, depth, opacity, viewpoint, pixel_mask=None):
+    """Mapping loss over sparse pixels selected by pixel_mask.
+
+    Falls back to the dense get_loss_mapping when pixel_mask is None.
+    pixel_mask: (H, W) bool tensor on CUDA. SSIM is computed via the
+    shuffle-pack trick (calc_ssim_shuffled_packed) which synthesises a
+    compact 2D image from the sparse pixel set.
+    """
+    if pixel_mask is None:
+        return get_loss_mapping(config, image, depth, viewpoint, opacity)
+
+    from gaussian_splatting.utils.loss_utils import calc_ssim_shuffled_packed
+
+    image_ab = torch.exp(viewpoint.exposure_a) * image + viewpoint.exposure_b
+    gt_image = viewpoint.original_image.cuda()
+    rgb_mask = gt_image.sum(dim=0) > config["Training"]["rgb_boundary_threshold"]
+    valid_mask = pixel_mask & rgb_mask
+
+    l1 = torch.abs(image_ab[:, valid_mask] - gt_image[:, valid_mask]).mean()
+    lambda_dssim = config["opt_params"].get("lambda_dssim", 0.2)
+    ssim_val = calc_ssim_shuffled_packed(image_ab, gt_image, valid_mask)
+    rgb_loss = (1.0 - lambda_dssim) * l1 + lambda_dssim * (1.0 - ssim_val)
+
+    if config["Training"]["monocular"]:
+        return rgb_loss
+
+    alpha = config["Training"].get("alpha", 0.95)
+    # NOTE: viewpoint.depth is a numpy array; .cuda() will fail for RGBD datasets.
+    # Monocular datasets (primary target) return above and never reach this branch.
+    gt_depth = viewpoint.depth.cuda()
+    depth_mask = (gt_depth > 0) & pixel_mask
+    d_loss = (
+        torch.abs(depth[0, depth_mask] - gt_depth[depth_mask]).mean()
+        if depth_mask.any()
+        else torch.tensor(0.0, device=image.device)
+    )
+    return alpha * rgb_loss + (1.0 - alpha) * d_loss
+
+
 def get_median_depth(depth, opacity=None, mask=None, return_std=False):
     depth = depth.detach().clone()
     opacity = opacity.detach()
