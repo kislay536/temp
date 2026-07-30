@@ -99,3 +99,22 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True):
         return ssim_map.mean()
     else:
         return ssim_map.mean(1).mean(1).mean(1)
+
+
+def calc_ssim_shuffled_packed(img1, img2, mask, window_size=4, stride=4):
+    """SSIM over sparse pixels by shuffle-packing into a synthetic image."""
+    pix1 = img1[:, mask]  # [3, N]
+    pix2 = img2[:, mask]  # [3, N]
+    N = pix1.shape[1]
+    if N < 64:
+        return l1_loss(pix1, pix2)
+
+    perm = torch.randperm(N, device=img1.device)
+    cat1 = torch.cat([pix1, pix1[:, perm]], dim=1)  # [3, 2N]
+    cat2 = torch.cat([pix2, pix2[:, perm]], dim=1)
+
+    H_s = 64
+    W_s = cat1.shape[1] // H_s
+    cat1 = cat1[:, : H_s * W_s].reshape(1, 3, H_s, W_s)
+    cat2 = cat2[:, : H_s * W_s].reshape(1, 3, H_s, W_s)
+    return ssim(cat1, cat2)
