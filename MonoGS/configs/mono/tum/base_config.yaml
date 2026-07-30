@@ -43,6 +43,11 @@ Training:
   single_thread: False
   spherical_harmonics: False
 
+  use_splatonic: false
+  flip_ratio: 4
+  tracking_tile_size: 16
+  mapping_tile_size: 4
+
   lr:
     cam_rot_delta: 0.003
     cam_trans_delta: 0.001
