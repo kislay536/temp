@@ -221,6 +221,18 @@ class FrontEnd(mp.Process):
         use_splatonic = self.config["Training"].get("use_splatonic", False)
         tile_size = self.config["Training"].get("tracking_tile_size", 16)
 
+        # Periodic dense re-anchoring: every Nth frame uses dense tracking
+        # instead of sparse, mirroring mapping's existing flip_ratio. See
+        # port/STATUS.md section 9 -- forcing dense loss for a run of
+        # frames reliably re-anchors drifted sparse tracking within ~10-13
+        # frames, and periodic re-anchoring (rather than waiting for severe
+        # drift) is expected to need far fewer dense frames per cycle.
+        # Disabled by default (0); does not change existing behavior unless
+        # a config explicitly sets tracking_flip_ratio > 0.
+        tracking_flip_ratio = self.config["Training"].get("tracking_flip_ratio", 0)
+        if tracking_flip_ratio and cur_frame_idx % tracking_flip_ratio == 0:
+            use_splatonic = False
+
         force_dense_str = os.environ.get("SPLATONIC_DEBUG_FORCE_DENSE_FRAMES")
         if force_dense_str:
             force_dense_frames = {int(x) for x in force_dense_str.split(",")}

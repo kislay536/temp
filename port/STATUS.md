@@ -1467,3 +1467,38 @@ for the roadmap owner. The diagnostic tooling built tonight
 (`SPLATONIC_DEBUG_ATE`, `SPLATONIC_DEBUG_FORCE_DENSE_FRAMES`,
 `_debug_isolate_rotation`, `generate_random_mask_k`) makes it cheap to
 prototype and validate this on faster hardware.
+
+### First prototype of the fix tested — negative result, but explains why
+
+Implemented `tracking_flip_ratio` (`slam_frontend.py`, config-driven,
+defaults to `0`/disabled — matches mapping's `flip_ratio` pattern) and
+tested the most naive schedule: every 4th frame uses dense
+(`tracking_flip_ratio: 4`, config
+`configs/mono/tum/fr1_desk_splatonic_trackflip.yaml`). Full-sequence
+result: **final RMSE ATE 0.797m — no improvement over the 0.726m
+baseline, if anything slightly worse.** PSNR/SSIM also unchanged
+(14.24/0.52 vs. 14.35/0.51).
+
+**This makes sense in light of finding 11's own data, not a
+contradiction of it.** Finding 11 forced a *contiguous block* of 16
+consecutive dense frames and recovery only became clean in the *last*
+~3 frames of that block (13 frames in). `tracking_flip_ratio=4` gives a
+single *isolated* dense frame every 4th frame — each one immediately
+followed by 3 sparse frames that reintroduce the same bias before any
+re-anchoring can accumulate. One dense frame in isolation is nowhere
+near the ~10-13 *consecutive* dense frames finding 11 showed were
+actually needed. The fix concept (dense re-anchoring works) is still
+supported by finding 11; this specific schedule (sparse single-frame
+flips) is simply far too weak a dose.
+
+**Implication for a working version:** the FLIP schedule for tracking
+needs contiguous *blocks* of dense frames (e.g., ~10-15 consecutive dense
+frames every N frames), not single isolated flips — a materially
+different, more expensive schedule than mapping's own 1-in-4 single-frame
+pattern (which works for mapping's own reasons, unrelated to this).
+Whether that's worth the added dense-tracking cost (losing more of
+sparse's speed advantage than a naive 1-in-4 schedule would) is a
+tradeoff for the roadmap owner to weigh — not re-tested tonight given
+time already spent; the next concrete experiment is a
+`tracking_flip_ratio`-and-block-length variant (e.g., 12 consecutive
+dense frames every 50) rather than a single-frame period.
