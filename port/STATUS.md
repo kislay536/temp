@@ -102,9 +102,9 @@ errors (CU6.1 territory) on both packages — `rasterizer_impl.cu` and
 | CU4.3 | Remove dead `GeometryState` allocations (`rasterizer_impl.cu`) | ✅ Done **with a safety correction** (kept `tiles_touched`'s own allocation) — see §5 Gap 6 |
 | CU4.4 | Read `num_rendered` via `cudaMemcpy` after preprocess (`rasterizer_impl.cu`) | ✅ Done, committed `cec8904` |
 | CU4.5 | Change render grid launch tile→pixel (`rasterizer_impl.cu`) | ✅ Done **with two correctness additions** (ranges-zeroing sizing, sort bit-width) — see §5 Gaps 7–8 |
-| CU5.1 | `renderCUDA` kernel signature + `FORWARD::render` wrapper fix (`forward.cu`) | ✅ Done, **uncommitted** — wrapper fix folds in Gap 5 (see §5) |
-| CU5.2 | Block→pixel mapping (`forward.cu`) | ✅ Done, **uncommitted** |
-| CU5.3–CU5.6 | Warp prefix-scan transmittance, color/depth accumulation, `n_touched`, cooperative early exit (`forward.cu`) | ✅ Done **against SPLATONIC's real algorithm, not the roadmap's flawed pseudocode**, **uncommitted** — see §5 Gaps 9–10, §6d/§6e |
+| CU5.1 | `renderCUDA` kernel signature + `FORWARD::render` wrapper fix (`forward.cu`) | ✅ Done, committed `e18bf3b` — wrapper fix folds in Gap 5 (see §5) |
+| CU5.2 | Block→pixel mapping (`forward.cu`) | ✅ Done, committed `e18bf3b` |
+| CU5.3–CU5.6 | Warp prefix-scan transmittance, color/depth accumulation, `n_touched`, cooperative early exit (`forward.cu`) | ✅ Done **against SPLATONIC's real algorithm, not the roadmap's flawed pseudocode** — see §5 Gaps 9–10, §6d/§6e |
 | CU5.7 | Compile + brute-force correctness test | ✅ Satisfied by Checkpoint B (§6e) — 0 mismatches, sanitizers clean, both tilings |
 | CU5.8 | Regression test on dense MonoGS (real SLAM tracking loop) | ⬜ Not started — needs a live `slam.py` run, deferred (see §7) |
 | CU6.1–CU9.2 | Python bindings, autograd wiring, sparse backward kernel, activation | Not started |
@@ -142,8 +142,8 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
   - CU3.6: pack `key = (uint64_t)(uint32_t)k << 32 | depth_bits`, `slot = atomicAdd(num_rendered_ptr, 1)`, overflow guard `if (slot >= MAX_NUM_RENDERED) return;`, write `gaussian_keys_unsorted[slot]`/`gaussian_values_unsorted[slot]`
   - Verified byte-identical between `track-rasterization` and `map-rasterization` after every edit
 - `rasterizer_impl.cu` — **(CU4.1–CU4.5, committed `cec8904`)**: `InclusiveSum`/`duplicateWithKeys` calls removed; `GeometryState::fromChunk()`'s dead `scanning_space`/`point_offsets` allocations removed (kept `tiles_touched`'s own allocation, Gap 6); `num_rendered` now read via `cudaMemcpy` from `num_rendered_dev` instead of the old prefix-sum readout; render launch switched from `tile_grid`/`dim3(BLOCK_X,BLOCK_Y,1)` to `dim3(num_pixels,1,1)`/`dim3(BLOCK_SIZE,1,1)`, passing `pixel_coords`/`num_pixels` through; `imgState.ranges` zeroing resized to `num_pixels` (Gap 7) and the radix-sort bit-width switched to `getHigherMsb(num_pixels)` (Gap 8)
-- `forward.cu` — **(CU5.1–CU5.6, new this update, uncommitted)**: `renderCUDA` kernel rewritten for one-block-per-sampled-pixel dispatch with a cross-warp-serialized transmittance scan (ported from the real SPLATONIC source, not the roadmap's pseudocode — Gap 9), `WARP_SIZE_EFF`/`__activemask()`-based shuffle masks (sub-warp-safe for map's `BLOCK_SIZE=16`), `n_touched` atomicAdd, cooperative early exit, block-wide color/depth reduction; `FORWARD::render` wrapper updated to accept and forward `pixel_coords`/`num_pixels` (closes Gap 5)
-- `auxiliary.h` — **(new this update, uncommitted)**: `NUM_WARPS` changed from floor to ceiling division (`(BLOCK_SIZE+31)/32`) — floor division gives 0 for map's `BLOCK_SIZE=16`, sizing `renderCUDA`'s shared arrays as zero-length
+- `forward.cu` — **(CU5.1–CU5.6, committed `e18bf3b`)**: `renderCUDA` kernel rewritten for one-block-per-sampled-pixel dispatch with a cross-warp-serialized transmittance scan (ported from the real SPLATONIC source, not the roadmap's pseudocode — Gap 9), `WARP_SIZE_EFF`/`__activemask()`-based shuffle masks (sub-warp-safe for map's `BLOCK_SIZE=16`), `n_touched` atomicAdd, cooperative early exit, block-wide color/depth reduction; `FORWARD::render` wrapper updated to accept and forward `pixel_coords`/`num_pixels` (closes Gap 5)
+- `auxiliary.h` — **(committed `e18bf3b`)**: `NUM_WARPS` changed from floor to ceiling division (`(BLOCK_SIZE+31)/32`) — floor division gives 0 for map's `BLOCK_SIZE=16`, sizing `renderCUDA`'s shared arrays as zero-length
 
 ### Not yet touched
 - `rasterizer_impl.h` (both rasterizers) — `GeometryState`/`BinningState` structs unchanged
@@ -153,7 +153,7 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 ### Roadmap document
 - `port/MILESTONE_PLAN_V3.md` — CU3.2/CU4.3 clarification committed (`91dd31d`). Note: the separately-drafted "Gap 3" clarification (adding an explicit `Rasterizer::forward()` signature-update item to CU3.2's text) was **not** applied to the roadmap file itself — it was authorized directly via explicit task instruction instead and implemented as described above. The roadmap text does not yet reflect this; consider folding it in for future readers.
-- `port/MILESTONE_PLAN_V3.md` — **(Gap 4, new this update, uncommitted)**: CU3.5's code block, comments, and review checklist rewritten to fix the two bugs described in §5. This is a correction to CU3.5's own text, not a scope/ownership/sequencing change — no milestone renumbered, no new milestone added.
+- `port/MILESTONE_PLAN_V3.md` — **(Gap 4, committed `342d88d`)**: CU3.5's code block, comments, and review checklist rewritten to fix the two bugs described in §5. This is a correction to CU3.5's own text, not a scope/ownership/sequencing change — no milestone renumbered, no new milestone added.
 
 ---
 
@@ -167,7 +167,7 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 **Commits (most recent first):**
 ```
-<pending> feat(cuda-forward): CU5.1-CU5.6 sparse renderCUDA + Checkpoint B harness  [CU5.1-5.6, port/tests/test_render.cu]
+e18bf3b feat(cuda-forward): CU5.1-CU5.6 sparse renderCUDA + Checkpoint B harness  [CU5.1-5.6, port/tests/test_render.cu]
 cec8904 feat(cuda-impl): CU4.1-CU4.5 - switch dispatch from tile-duplication to atomic pixel-key counting  [CU4.1-4.5]
 7ac1fd3 test(cuda-preprocess): validate preprocessCUDA key generation         [CU3.7 - port/tests/ harness]
 342d88d milestone 1                                                              [CU3.4+CU3.5(fixed)+CU3.6, roadmap Gap 4, STATUS.md]
