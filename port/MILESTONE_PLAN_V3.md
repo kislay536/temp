@@ -1005,7 +1005,7 @@ This line is the last thing that `preprocessCUDA` used to do. Deleting it leaves
 
 **Review checklist:**  
 - [ ] The delete is exactly one line — not an if-block around it  
-- [ ] No other writes to `tiles_touched` remain in `preprocessCUDA`  
+- [ ] No other *count* write to `tiles_touched` remains in `preprocessCUDA` — the early `tiles_touched[idx] = 0;` initialization stays because `InclusiveSum` still consumes this array until CU4.1.
 
 **Commit name:** `feat(cuda-preprocess): remove tiles_touched write (replaced by pixel key gen)`
 
@@ -1045,11 +1045,12 @@ for (int tile_y = rect_min.y; tile_y < rect_max.y; ++tile_y) {
 **Inside the pixel loop from CU3.4, add:**
 ```cpp
 int2 pix = pixel_coords[k];
-float2 d = { (float)pix.x - p_proj.x, (float)pix.y - p_proj.y };
+float2 d = { (float)pix.x - point_image.x, (float)pix.y - point_image.y };
 float power = -0.5f * (conic.x * d.x * d.x
                      + 2.0f * conic.y * d.x * d.y
                      + conic.z * d.y * d.y);
-if (power > lowest_alpha_coeff) continue;   // alpha < 0.4% — skip
+power += logf(opacities[idx]);                 // fold in per-Gaussian opacity (matches SPLATONIC forward.cu:328)
+if (power <= -lowest_alpha_coeff) continue;    // alpha <= 0.4% — skip
 // Key generation comes in CU3.6
 ```
 
@@ -1057,8 +1058,9 @@ if (power > lowest_alpha_coeff) continue;   // alpha < 0.4% — skip
 
 **Review checklist:**  
 - [ ] `lowest_alpha_coeff` is included via `#include "auxiliary.h"`  
-- [ ] Comparison is `power > lowest_alpha_coeff` (NOT `<` — power is negative, higher magnitude = smaller contribution)  
-- [ ] `p_proj` is the 2D projected position of the current Gaussian (already computed earlier in preprocessCUDA)  
+- [ ] `d` is measured against `point_image` (pixel-space projected center), **not** `p_proj` (NDC space) — `p_proj` and `pix` are in incompatible units  
+- [ ] `power` includes `+= logf(opacities[idx])` before the comparison — without it the test measures Gaussian falloff shape, not alpha, contradicting CU2's own "alpha < 0.4%" derivation  
+- [ ] Comparison is `power <= -lowest_alpha_coeff` (cull), i.e. keep iff `power > -lowest_alpha_coeff` — `conic`'s quadratic form is always ≤ 0, so comparing against **positive** `lowest_alpha_coeff` can never fire (verified empirically: 0% pruned on two independent test scenes)  
 
 **Commit name:** `feat(cuda-preprocess): add preemptive alpha culling in pixel loop`
 

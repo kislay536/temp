@@ -259,6 +259,33 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	points_xy_image[idx] = point_image;
 	// Inverse 2D covariance and opacity neatly pack into one float4
 	conic_opacity[idx] = { conic.x, conic.y, conic.z, opacities[idx] };
+
+	for (int tile_y = rect_min.y; tile_y < rect_max.y; ++tile_y) {
+		for (int tile_x = rect_min.x; tile_x < rect_max.x; ++tile_x) {
+			int tile_id = tile_y * grid.x + tile_x;
+			int pstart  = pixel_range[tile_id];
+			int pend    = pixel_range[tile_id + 1];
+			for (int k = pstart; k < pend; ++k) {
+				int2 pix = pixel_coords[k];
+				float2 d = { (float)pix.x - point_image.x, (float)pix.y - point_image.y };
+				float power = -0.5f * (conic.x * d.x * d.x
+									 + 2.0f * conic.y * d.x * d.y
+									 + conic.z * d.y * d.y);
+				power += logf(opacities[idx]);                 // fold in per-Gaussian opacity (matches SPLATONIC forward.cu:328)
+				if (power <= -lowest_alpha_coeff) continue;    // alpha <= 0.4% — skip
+
+				// Pack key: upper 32 bits = pixel array index k, lower 32 = depth bits
+				uint32_t depth_bits = *reinterpret_cast<const uint32_t*>(&depths[idx]);
+				uint64_t key = ((uint64_t)(uint32_t)k << 32) | (uint64_t)depth_bits;
+
+				int slot = atomicAdd(num_rendered_ptr, 1);
+				if (slot >= MAX_NUM_RENDERED) return;   // overflow guard
+
+				gaussian_keys_unsorted[slot]   = key;
+				gaussian_values_unsorted[slot] = idx;
+			}
+		}
+	}
 }
 
 // Main rasterization method. Collaboratively works on one tile per
