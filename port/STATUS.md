@@ -182,7 +182,7 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 **Commits (most recent first):**
 ```
-<pending> feat(cuda-entry): CU6.1+CU6.3 pixel_range/pixel_coords through rasterize_points.cu  [CU6.1, CU6.3, Gap 11]
+8563880 feat(cuda-entry): CU6.1+CU6.3 pixel_range/pixel_coords through rasterize_points.cu  [CU6.1, CU6.3, Gap 11]
 2337267 docs: fill in commit hashes in STATUS.md ledger after CU5 commit
 e18bf3b feat(cuda-forward): CU5.1-CU5.6 sparse renderCUDA + Checkpoint B harness  [CU5.1-5.6, port/tests/test_render.cu]
 cec8904 feat(cuda-impl): CU4.1-CU4.5 - switch dispatch from tile-duplication to atomic pixel-key counting  [CU4.1-4.5]
