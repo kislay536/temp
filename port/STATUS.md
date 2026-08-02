@@ -1,6 +1,10 @@
 # SPLATONIC-on-MonoGS Port — Status
 
-Last updated: 2026-08-02 (CU8.1–CU8.4 done — **both packages now `pip install` successfully for the first time in this port**, full end-to-end forward+backward verified through the real compiled extension; Milestone 4b closed, Milestone 4c nearly done)
+Last updated: 2026-08-02 (CU9.1–CU9.2 done, tagged `milestone-4e-cuda-live` —
+**the full port now runs end-to-end through a real `slam.py` SLAM session with
+the sparse CUDA rasterizers live**. Milestone 4 is complete. Milestone 5's
+V1/V2 are confirmed; V3–V5 surfaced a large, still-unresolved ATE/PSNR
+regression in the sparse path — see §9.)
 
 Roadmap: `port/MILESTONE_PLAN_V3.md`. This document is a snapshot of what has
 been done, what changed where, and what is still open. It is not itself a
@@ -170,7 +174,11 @@ satisfied by this work; CU9 (activating the dispatch switch) and Milestone
 | CU8.4 | Warp prefix-scan for backward transmittance | ✅ Done **against SPLATONIC's real algorithm + a sign-bug fix**, committed `82e5943` — see §5 Gap 14, §6h |
 | CU8.5 | Verify `BACKWARD::preprocess` untouched | ✅ Confirmed — `BACKWARD::preprocess`/`computeCov2DCUDA`/`preprocessCUDA` (backward) untouched; only `renderCUDA` and its wrapper changed |
 | CU8.6 | Compile + gradient-flow test | ✅ **Both packages `pip install` successfully — first fully working builds of this port.** Gradient flow + finite-difference check pass on both, real Python-driven run, `compute-sanitizer` clean (see §6h) |
-| CU9.1–CU9.2 | Activate dispatch switch, smoke test | Not started |
+| CU9.1 | Implement rasterizer dispatch in `render()` (`gaussian_renderer/__init__.py`) | ✅ Done, committed `a06b93f` — verified against dense/track-sparse/map-sparse paths with a synthetic scene (forward shapes, `n_touched>0`, backward gradients incl. `cam_rot_delta`/`cam_trans_delta`) |
+| CU9.2 | Full `slam.py` smoke test, sparse rasterizer active, tag `milestone-4e-cuda-live` | ✅ Done, committed `ba57f8e` — full 613-frame TUM fr1_desk run completes, no CUDA errors, tracking dispatches to `TrackRasterizer`, mapping alternates Dense/`MapRasterizer` per FLIP. Required sizing `map-rasterization`'s `MAX_NUM_RENDERED` down (16M→1M) to fit this dev machine's 4GB GPU — see below. |
+| V1 | Confirm FLIP counter uses real sparse rasterizer | ✅ Confirmed via code inspection (`slam_backend.py:166`) + exercised live across 613 frames in CU9.2 — no code change needed |
+| V2 | Confirm densification gated to dense passes | ✅ Confirmed via code inspection (`slam_backend.py:204-206,260-262,335`) — `viewspace_point_tensor_acm`/`visibility_filter_acm`/`radii_acm` only populated in `use_dense` branches — no code change needed |
+| V3–V5 | Baseline ATE / FPS / PSNR-SSIM comparison, sparse vs dense | ⚠️ Measured — **large, unresolved quality gap found**, see §9 below |
 
 ---
 
@@ -845,29 +853,123 @@ the real compiled package, not just a hand-rolled harness.
 
 ## 7. Immediate next steps
 
-1. **(Done — committed `82e5943`.)** Next: (`backward.cu`/`.h`, `rasterizer.h`'s Gap 13
-   extension, `rasterizer_impl.cu`'s Gap 11 closure, `rasterize_points.h`/`.cu`'s
-   `pixel_range` addition to the backward path, `diff_gaussian_rasterization/__init__.py`'s
-   matching Python-side threading, `port/tests/test_checkpoint_c_e2e.py` +
-   `run_checkpoint_c.sh`) — implemented and verified this update, not
-   committed yet.
-2. **CU5.8** (regression test on dense MonoGS — a real tracking loop
-   compared against the dense baseline) still needs a live `slam.py` run
-   with a real dataset, which needs CU9's dispatch switch wired up.
-   Checkpoint C (§6h) is now a much stronger substitute than before (real
-   gradient flow through the actual compiled package, not just a
-   standalone harness) but is still a static-scene test, not a live SLAM
-   run.
-3. Continue to **CU9.1–CU9.2**: implement the actual dispatch switch in
-   `gaussian_renderer/render()` (currently a stub — "Always uses dense
-   rasterizer until then") so `use_track_rasterizer`/`use_map_rasterizer`
-   actually select `track_rasterization`/`map_rasterization` instead of
-   the untouched dense submodule, then a full `slam.py` smoke test.
-4. Then **Milestone 5** (validation): confirm the FLIP counter and
-   densification gating actually exercise the real sparse rasterizer
-   (not the dense stub they've been validated against so far), baseline
-   ATE comparison on TUM fr1_desk, FPS benchmark, PSNR/SSIM sparse vs
-   dense.
+1. **(Done.)** CU1–CU9.2 all implemented, verified, committed, and tagged
+   (`milestone-4a-cuda-interfaces`, `milestone-4b-cuda-preprocess`,
+   `milestone-4e-cuda-live`). Both packages `pip install` cleanly and run
+   through a real end-to-end `slam.py` session.
+2. **CU5.8** — satisfied in spirit by CU9.2's live `slam.py` run (a real
+   tracking loop through the actual compiled sparse extension, on real
+   data), though it surfaced the accuracy issue in §9 rather than a clean
+   pass.
+3. **Open — the §9 ATE/PSNR regression.** Two targeted hypotheses have
+   been tested and falsified (see §9); root cause is still unknown.
+   Candidates not yet tested: sparse-driven `median_depth` estimation
+   noise affecting keyframe-insertion thresholds (`slam_frontend.py:211,
+   231-232`), and a tracking-pose ↔ mapping-quality feedback loop (bad
+   poses feed bad viewpoints into mapping, which degrades the map, which
+   degrades tracking's photometric residual on the next frame). Re-running
+   on more capable hardware (A100, full `MAX_NUM_RENDERED=16,000,000`) is
+   planned next, primarily to remove this dev machine's 4GB VRAM ceiling
+   as a variable for iteration speed and buffer sizing — **note this is
+   not expected to change the ATE result itself**, since the mechanism
+   was already reproduced pre-CU9 (2026-07-30, dense renderer, original
+   16M buffer) — see §9 for why.
+4. Once root-caused: re-run V3–V5 for a clean baseline-vs-sparse
+   comparison and close out Milestone 5.
 5. (Optional, cosmetic) Fold the Gap 3 clarification into
    `MILESTONE_PLAN_V3.md`'s CU3.2 text so the roadmap document itself
    reflects what was actually authorized and built.
+
+---
+
+## 9. Milestone 5 (V3–V5): the ATE/PSNR regression
+
+**TL;DR:** the real, fully-wired sparse pipeline (CU9.2, live) runs cleanly
+end to end, but tracking accuracy on TUM fr1_desk is far worse than dense —
+RMSE ATE ~0.72m vs dense's ~0.03m, PSNR ~14 vs dense's ~21. Two plausible,
+targeted fixes were tried and **both failed to move the number**. This is
+recorded here, unresolved, for whoever picks this up next (possibly the same
+session, on an A100).
+
+### Numbers
+
+| Run | RMSE ATE (m) | PSNR (dB, after refine) | SSIM | Total FPS | Gaussians (final) |
+|---|---|---|---|---|---|
+| Dense baseline, 2026-07-30-21-47-12 (pre-session) | 0.0285 | 21.33 | 0.71 | — | — |
+| Dense baseline, 2026-08-02-20-05-28 (this session, same HW as sparse runs below) | 0.0339 | 21.25 | 0.71 | 0.514 | 24,123 |
+| `use_splatonic:true`, 2026-07-30-22-38-45 / 23-22-50 (**pre-CU9** — dispatch was still a stub, always dense renderer) | 0.7128 (both, ~identical) | — | — | — | — |
+| **CU9.2 live sparse run**, 2026-08-02-19-40-07 (real CUDA sparse rasterizers) | 0.7262 | 14.35 | 0.51 | 0.789 | 28,843 |
+| Experiment: resample tracking pixel mask every iteration (reverted) | 0.7226 | 14.46 | — | 0.691 | — |
+| Experiment: fix loss normalization to match dense's convention (reverted) | 0.7076 | 14.37 | — | 0.566 | — |
+
+### The one clean, load-bearing fact
+
+The **pre-CU9** `use_splatonic:true` runs (2026-07-30, `render()` was still a
+stub that unconditionally used the dense renderer, and `map-rasterization`'s
+`MAX_NUM_RENDERED` was still the un-shrunk 16,000,000) already reproduce the
+same ~0.71m ATE that the real CU9 CUDA kernels produce today. That rules out,
+with high confidence:
+- Any correctness bug in the `track-rasterization`/`map-rasterization` CUDA
+  kernels (they weren't even in the loop for the 07-30 runs).
+- The `MAX_NUM_RENDERED` reduction made this session for the 4GB dev GPU
+  (irrelevant to a dense-rendered run).
+- Anything GPU-model/VRAM-specific (the mechanism lives entirely in
+  pure-Python sparse loss/mask code — `generate_random_mask`,
+  `get_loss_tracking_sparse` — with zero hardware dependency; it will
+  reproduce identically on an A100).
+
+It also means this is not a regression introduced by this session's CU9 work
+— it's a pre-existing characteristic of the Milestone 2 sparse-loss design
+that was already flagged as "expected" in this file's own INT2 entry, before
+any CUDA kernel existed, and has simply never been closed out until now that
+the real dispatch makes it visible end-to-end.
+
+### Hypotheses tested (both falsified)
+
+1. **Frozen per-frame random mask causes optimizer bias.**
+   `slam_frontend.py`'s `tracking()` calls `generate_random_mask()` once
+   before the 100-iteration pose-optimization loop, reusing the same ~600
+   pixels (1200 tile samples ∩ `grad_mask`) for every step. Hypothesis: the
+   optimizer overfits to that frozen sample's local quirks instead of the
+   true photometric error, and this bias compounds frame-over-frame (no
+   loop closure). **Fix tried:** resample every iteration instead of once
+   per frame. **Result:** ATE 0.7226 — no improvement over 0.7262 baseline.
+   Reverted.
+2. **Loss normalization scale mismatch.** `get_loss_tracking_rgb` (dense)
+   zeroes masked-out pixels and takes `.mean()` over the *full* `C*H*W`
+   tensor; `get_loss_tracking_sparse` gathers only the active pixels via
+   boolean indexing and takes `.mean()` over just that (much smaller)
+   count — inflating the effective per-pixel gradient by `H*W/n_active`
+   (~500x for a ~600-pixel mask on a 480×640 frame) relative to what the
+   `cam_rot_delta`/`cam_trans_delta` learning rates were tuned against.
+   **Fix tried:** normalize by `C*H*W` in both `get_loss_tracking_sparse`
+   and `get_loss_mapping_sparse` to match dense's convention exactly.
+   **Result:** ATE 0.7076 — no meaningful improvement. Reverted.
+
+### One more data point gathered (not yet acted on)
+
+The sparse run's final Gaussian count (28,843) is actually *higher* than
+the dense baseline's (24,123) — so "the map is too sparse/under-densified
+because FLIP gates densification to 1-in-4 passes" is not obviously
+supported by count alone. This weakly favors the reverse causal direction:
+tracking-pose error feeds bad viewpoints into mapping (Gaussians get fit
+against inconsistent camera poses), which would degrade rendered PSNR as a
+*symptom* of tracking drift rather than mapping being an independent second
+bug. Not yet tested empirically.
+
+### Recommended next steps (unstarted)
+
+- Instrument (temporarily) per-frame pose delta magnitude and tracking loss
+  value for the first ~50 frames of a sparse run, compare against dense, to
+  see whether divergence is gradual (consistent with noisy-gradient-driven
+  drift) or has a sharp onset (consistent with a discrete bug at a specific
+  frame/event, e.g. a keyframe reset or `median_depth` miscalculation).
+- Check whether `self.median_depth` (`slam_frontend.py:211`), computed from
+  the sparse-only depth/opacity buffer, is a reasonable estimate — if the
+  sample is too small or biased it feeds directly into keyframe-insertion
+  thresholds (`slam_frontend.py:231-232`) and could destabilize keyframe
+  cadence.
+- Once hardware allows, re-run V3–V5 on the A100 with the full
+  `MAX_NUM_RENDERED=16,000,000` restored, purely to remove this dev
+  machine's constraints from the loop — expected to reproduce the same ATE
+  per the analysis above, but worth confirming.
