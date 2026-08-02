@@ -1027,7 +1027,7 @@ and `cam_trans_delta` gradient paths, and translation was never the problem.
   future investigation much faster than reconstructing it from periodic
   ATE checkpoints again.
 
-### Attempted (inconclusive): more tracking pixels via `tracking_tile_size`
+### Attempted (invalid): more tracking pixels via `tracking_tile_size`
 
 Tried the cheapest possible test of "does more supervision reduce rotation
 drift": set `Training.tracking_tile_size: 8` (4x more tracking pixels,
@@ -1041,10 +1041,46 @@ architectural coupling here, not just a convention. Note the crash's
 *stack trace* pointed at the backend's `extend_from_pcd_seq` /
 `densification_postfix` (unrelated-looking code) rather than the tracking
 path — consistent with CUDA's asynchronous error reporting surfacing a
-frontend illegal-launch on a later, unrelated call, but this means the
-experiment doesn't cleanly confirm *why* it failed, only that `tile_size !=
-16` for tracking is unsafe as-is. Reverted (config file deleted, no
-committed changes). Testing the pixel-count hypothesis properly would need
-a genuinely different pixel-selection function (K pixels per 16x16 tile,
-keeping `tile_size=16` for `BLOCK_X` compatibility) rather than a smaller
-tile size — not attempted yet.
+frontend illegal-launch on a later, unrelated call. Config file deleted,
+no committed changes from this attempt.
+
+### Hypothesis 3 tested and falsified: pixel *count* is not the driver
+
+Did this properly: added `generate_random_mask_k(image_size, tile_size,
+k, device)` to `mask_utils.py` — samples `k` independent random pixels
+per tile instead of 1, keeping `tile_size=16` (hence the tile grid, hence
+`BLOCK_X` compatibility) identical to the working baseline. Wired into
+`slam_frontend.py`'s `tracking()` behind `SPLATONIC_DEBUG_TRACK_K` (env
+var, default `1` = unchanged behavior, no-op by default). Ran with `k=4`
+(4800 pixels instead of 1200, a 4x increase) plus `SPLATONIC_DEBUG_ATE=1`:
+
+| Frame | Rotation error, k=1 (baseline) | Rotation error, k=4 |
+|---|---|---|
+| 100 | 11.6° | 12.5° |
+| 150 | ~23° (interpolated) | 26.8° |
+| 200 | ~46° (interpolated) | 61.8° |
+| 250 | ~60° | 71.4° |
+
+4x more tracking pixels did not reduce the rotation drift rate — if
+anything it's slightly worse (likely within run-to-run noise given
+different random draws, but certainly not an improvement). **This rules
+out raw sample size/count as the primary driver**, on top of the earlier
+falsified hypotheses (mask-resampling frequency, loss normalization
+scale). Three independent variables changed, three null results, all
+while dense stays rock-solid (0.6-4°) on the exact same sequence with the
+exact same optimizer/learning rates.
+
+**Where this leaves the search:** the problem is very unlikely to be "not
+enough sparse pixels" in any simple sense (quantity, resampling frequency,
+or normalization). It's more likely something structural — e.g., in how
+the `theta` (`cam_rot_delta`) gradient is actually computed through the
+sparse kernel's backward pass, or a genuine spatial-conditioning issue
+that survives naive resampling (e.g., if the tile-grid sampling still
+systematically under-represents the image periphery, where rotation's
+apparent-motion signal is strongest, in a way that more *uniform* random
+resampling doesn't fix). This now needs kernel-level (not Python-loss-
+level) investigation — comparing dense's and sparse's `theta` gradient
+values directly on a matched small test case, the way Checkpoint C did
+for the forward/backward math generally but not specifically isolating
+rotation vs translation contributions. Not attempted yet — a reasonable
+next session's starting point, ideally on faster hardware.

@@ -11,7 +11,7 @@ from gui import gui_utils
 from utils.camera_utils import Camera
 from utils.eval_utils import eval_ate, save_gaussians
 from utils.logging_utils import Log
-from utils.mask_utils import generate_random_mask, get_pixel_info
+from utils.mask_utils import generate_random_mask, generate_random_mask_k, get_pixel_info
 from utils.multiprocessing_utils import clone_obj
 from utils.pose_utils import update_pose
 from utils.slam_utils import get_loss_tracking, get_loss_tracking_sparse, get_median_depth
@@ -136,9 +136,15 @@ class FrontEnd(mp.Process):
 
         if use_splatonic:
             H, W = viewpoint.image_height, viewpoint.image_width
-            pixel_mask, pixel_range, pixel_coords = generate_random_mask(
-                (H, W), tile_size=tile_size, device="cuda"
-            )
+            debug_k = int(os.environ.get("SPLATONIC_DEBUG_TRACK_K", "1"))
+            if debug_k > 1:
+                pixel_mask, pixel_range, pixel_coords = generate_random_mask_k(
+                    (H, W), tile_size=tile_size, k=debug_k, device="cuda"
+                )
+            else:
+                pixel_mask, pixel_range, pixel_coords = generate_random_mask(
+                    (H, W), tile_size=tile_size, device="cuda"
+                )
         else:
             pixel_mask = pixel_range = pixel_coords = None
 

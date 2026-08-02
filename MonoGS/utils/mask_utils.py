@@ -114,6 +114,44 @@ def generate_random_mask(image_size, tile_size=16, device="cuda"):
     return mask, offsets, sorted_coords
 
 
+def generate_random_mask_k(image_size, tile_size=16, k=1, device="cuda"):
+    """
+    EXPERIMENTAL (not part of the roadmap spec): like generate_random_mask,
+    but samples k independent random pixels per tile instead of exactly 1.
+    Keeps tile_size (hence the tile grid, hence BLOCK_X compatibility)
+    identical to generate_random_mask -- only the per-tile sample count k
+    changes the total pixel budget (num_tiles * k instead of num_tiles).
+    Used to test whether tracking's rotation-drift issue (see
+    port/STATUS.md section 9) responds to a larger per-frame pixel budget.
+    """
+    H, W = image_size
+    tile_h, tile_w = (tile_size, tile_size) if isinstance(tile_size, int) else tile_size
+
+    num_tiles_h = (H + tile_h - 1) // tile_h
+    num_tiles_w = (W + tile_w - 1) // tile_w
+    num_tiles = num_tiles_h * num_tiles_w
+
+    y_starts = torch.arange(0, num_tiles_h * tile_h, tile_h, device=device)
+    x_starts = torch.arange(0, num_tiles_w * tile_w, tile_w, device=device)
+    y_grid, x_grid = torch.meshgrid(y_starts, x_starts, indexing='ij')
+
+    y_grid_k = y_grid.reshape(-1, 1).expand(-1, k)
+    x_grid_k = x_grid.reshape(-1, 1).expand(-1, k)
+
+    rand_h_off = torch.randint(0, tile_h, (num_tiles, k), device=device)
+    rand_w_off = torch.randint(0, tile_w, (num_tiles, k), device=device)
+    abs_h = (y_grid_k + rand_h_off).clamp(max=H - 1)
+    abs_w = (x_grid_k + rand_w_off).clamp(max=W - 1)
+
+    sorted_coords = torch.stack([abs_w.flatten(), abs_h.flatten()], dim=1).to(torch.int32)
+    offsets = torch.arange(0, (num_tiles + 1) * k, k, dtype=torch.int32, device=device)
+
+    mask = torch.zeros((H, W), dtype=torch.bool, device=device)
+    mask[abs_h.flatten(), abs_w.flatten()] = True
+
+    return mask, offsets, sorted_coords
+
+
 def get_pixel_info(mask, tile_size=16):
     """
     Convert an arbitrary bool mask into the (offsets, sorted_coords) format
