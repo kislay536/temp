@@ -1,6 +1,6 @@
 # SPLATONIC-on-MonoGS Port — Status
 
-Last updated: 2026-08-02 (Milestone 4b closed — CU3.1–CU3.7 done, tagged `milestone-4b-cuda-preprocess`)
+Last updated: 2026-08-02 (CU4.1–CU4.5 and CU5.1–CU5.6 implemented and verified end-to-end; Milestone 4b closed, Milestone 4c in progress)
 
 Roadmap: `port/MILESTONE_PLAN_V3.md`. This document is a snapshot of what has
 been done, what changed where, and what is still open. It is not itself a
@@ -48,8 +48,33 @@ satisfying CU3.7's O/R verification levels for both tilings; its literal
 "C" level (full `pip install`) is deferred to CU4.5/CU6.1 per the
 milestone-boundary note below, matching how the roadmap itself already
 defers CU3.7's "N" level. Tagged `milestone-4b-cuda-preprocess`. **Milestone
-4b (CU1–CU3, the interface + preprocess stage) is now fully closed.** Work
-continues downstream into CU4 (dispatch) and beyond.
+4b (CU1–CU3, the interface + preprocess stage) is now fully closed.**
+
+**New this update — Milestone 4c underway:** CU4.1–CU4.5 (dispatch:
+`InclusiveSum`/`duplicateWithKeys` removal, atomic `num_rendered` readout,
+tile→pixel render-grid launch) and CU5.1–CU5.6 (the sparse `renderCUDA`
+kernel itself — the core novel algorithm of this whole port) are both
+implemented in `rasterizer_impl.cu`/`forward.cu` on both rasterizers. Two
+more roadmap gaps were found and fixed while implementing CU4.5 (Gaps
+6–8, §5) exactly as before. **CU5's own pseudocode turned out to describe
+an algorithm that is wrong for any block with more than one warp** —
+found by cross-checking against the actual SPLATONIC reference source
+(present in this repo, `SPLATONIC/{track,map}-rasterization/`), which
+uses a materially more sophisticated cross-warp-serialized transmittance
+scan that the roadmap's simplified pseudocode omits entirely. Implemented
+the kernel against SPLATONIC's verified algorithm instead of the flawed
+pseudocode (Gap 9, §5), found and fixed one further translation bug of my
+own (Gap 9b) and one latent shared-memory race present in SPLATONIC's own
+source too (Gap 10) during a from-scratch end-to-end verification
+("Checkpoint B") that links directly against the now-compiling real
+`rasterizer_impl.cu`+`forward.cu` and diffs the GPU output against a
+brute-force CPU reference. After fixes: exact match (tol 1e-3) across 256
+pixels on both tilings, including a 600-Gaussian-deep stress scene forcing
+3 rounds (track) / 38 rounds (map) per pixel to exercise cross-round
+carry-over; `compute-sanitizer` memcheck + racecheck both clean. Full
+`pip install` error count is down to the same 5 `rasterize_points.cu`
+errors (CU6.1 territory) on both packages — `rasterizer_impl.cu` and
+`forward.cu` now compile clean on their own.
 
 ---
 
@@ -72,12 +97,17 @@ continues downstream into CU4 (dispatch) and beyond.
 | CU3.5 | Add alpha pruning (`lowest_alpha_coeff`) (`forward.cu`) | ✅ Done + **roadmap+code bug fixed**, committed `342d88d` — see §5 Gap 4, §6 |
 | CU3.6 | Add key packing + `atomicAdd` slot emission (`forward.cu`) | ✅ Done, committed `342d88d` — verified via Checkpoint A harness |
 | CU3.7 | Compile + unit test `preprocessCUDA`, tag `milestone-4b-cuda-preprocess` | ✅ Done — harness promoted to `port/tests/`, O/R satisfied, C deferred to CU4.5/CU6.1 (see §6b) |
-| CU4.1 | Remove `InclusiveSum` call (`rasterizer_impl.cu`) | ✅ Done, committed `<pending>` |
-| CU4.2 | Remove `duplicateWithKeys` call (`rasterizer_impl.cu`) | ✅ Done, committed `<pending>` |
+| CU4.1 | Remove `InclusiveSum` call (`rasterizer_impl.cu`) | ✅ Done, committed `cec8904` |
+| CU4.2 | Remove `duplicateWithKeys` call (`rasterizer_impl.cu`) | ✅ Done, committed `cec8904` |
 | CU4.3 | Remove dead `GeometryState` allocations (`rasterizer_impl.cu`) | ✅ Done **with a safety correction** (kept `tiles_touched`'s own allocation) — see §5 Gap 6 |
-| CU4.4 | Read `num_rendered` via `cudaMemcpy` after preprocess (`rasterizer_impl.cu`) | ✅ Done, committed `<pending>` |
+| CU4.4 | Read `num_rendered` via `cudaMemcpy` after preprocess (`rasterizer_impl.cu`) | ✅ Done, committed `cec8904` |
 | CU4.5 | Change render grid launch tile→pixel (`rasterizer_impl.cu`) | ✅ Done **with two correctness additions** (ranges-zeroing sizing, sort bit-width) — see §5 Gaps 7–8 |
-| CU5.1–CU9.2 | Sparse forward/backward kernels, Python bindings, activation | In progress — see §5 Gap 5 (CU5.1 must also fix the `FORWARD::render` wrapper) |
+| CU5.1 | `renderCUDA` kernel signature + `FORWARD::render` wrapper fix (`forward.cu`) | ✅ Done, **uncommitted** — wrapper fix folds in Gap 5 (see §5) |
+| CU5.2 | Block→pixel mapping (`forward.cu`) | ✅ Done, **uncommitted** |
+| CU5.3–CU5.6 | Warp prefix-scan transmittance, color/depth accumulation, `n_touched`, cooperative early exit (`forward.cu`) | ✅ Done **against SPLATONIC's real algorithm, not the roadmap's flawed pseudocode**, **uncommitted** — see §5 Gaps 9–10, §6d/§6e |
+| CU5.7 | Compile + brute-force correctness test | ✅ Satisfied by Checkpoint B (§6e) — 0 mismatches, sanitizers clean, both tilings |
+| CU5.8 | Regression test on dense MonoGS (real SLAM tracking loop) | ⬜ Not started — needs a live `slam.py` run, deferred (see §7) |
+| CU6.1–CU9.2 | Python bindings, autograd wiring, sparse backward kernel, activation | Not started |
 
 ---
 
@@ -106,11 +136,14 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
   - The `FORWARD::preprocess(...)` call now passes all 5 new arguments in `forward.h`'s committed order: `pixel_range`, `reinterpret_cast<const int2*>(pixel_coords)`, `num_rendered_dev`, `binningState.point_list_keys_unsorted`, `reinterpret_cast<int*>(binningState.point_list_unsorted)`
   - `duplicateWithKeys`, `InclusiveSum`, `SortPairs`, `identifyTileRanges`, and the `FORWARD::render()` dispatch are **untouched** — dense-path output is bit-for-bit the same, just backed by a larger, earlier-allocated binning buffer
 - `forward.cu` — **(CU3.3)**: the single final-line write `tiles_touched[idx] = (rect_max.y - rect_min.y) * (rect_max.x - rect_min.x);` at the end of `preprocessCUDA` is deleted. The earlier `tiles_touched[idx] = 0;` initialization (top of the function) is untouched. This is a placeholder removal only — no pixel loop, alpha pruning, or key packing added yet (CU3.4–CU3.6)
-- `forward.cu` — **(CU3.4/CU3.5/CU3.6, new this update, uncommitted)**: appended after `conic_opacity[idx] = ...` (the spot CU3.3's deletion vacated):
+- `forward.cu` — **(CU3.4/CU3.5/CU3.6, committed `342d88d`)**: appended after `conic_opacity[idx] = ...` (the spot CU3.3's deletion vacated):
   - CU3.4: `for (tile_y in rect_min.y..rect_max.y) for (tile_x in rect_min.x..rect_max.x)` computing `tile_id`, looking up `[pstart,pend) = pixel_range[tile_id..tile_id+1]`, and an inner `for (k in pstart..pend)` reading `pixel_coords[k]`
   - CU3.5 (**as fixed, not as originally drafted in the roadmap — see Gap 4 below**): `d = pix - point_image` (pixel-space, not `p_proj`/NDC), `power = -0.5*(mahalanobis quadratic form)`, `power += logf(opacities[idx])`, cull with `if (power <= -lowest_alpha_coeff) continue;`
   - CU3.6: pack `key = (uint64_t)(uint32_t)k << 32 | depth_bits`, `slot = atomicAdd(num_rendered_ptr, 1)`, overflow guard `if (slot >= MAX_NUM_RENDERED) return;`, write `gaussian_keys_unsorted[slot]`/`gaussian_values_unsorted[slot]`
   - Verified byte-identical between `track-rasterization` and `map-rasterization` after every edit
+- `rasterizer_impl.cu` — **(CU4.1–CU4.5, committed `cec8904`)**: `InclusiveSum`/`duplicateWithKeys` calls removed; `GeometryState::fromChunk()`'s dead `scanning_space`/`point_offsets` allocations removed (kept `tiles_touched`'s own allocation, Gap 6); `num_rendered` now read via `cudaMemcpy` from `num_rendered_dev` instead of the old prefix-sum readout; render launch switched from `tile_grid`/`dim3(BLOCK_X,BLOCK_Y,1)` to `dim3(num_pixels,1,1)`/`dim3(BLOCK_SIZE,1,1)`, passing `pixel_coords`/`num_pixels` through; `imgState.ranges` zeroing resized to `num_pixels` (Gap 7) and the radix-sort bit-width switched to `getHigherMsb(num_pixels)` (Gap 8)
+- `forward.cu` — **(CU5.1–CU5.6, new this update, uncommitted)**: `renderCUDA` kernel rewritten for one-block-per-sampled-pixel dispatch with a cross-warp-serialized transmittance scan (ported from the real SPLATONIC source, not the roadmap's pseudocode — Gap 9), `WARP_SIZE_EFF`/`__activemask()`-based shuffle masks (sub-warp-safe for map's `BLOCK_SIZE=16`), `n_touched` atomicAdd, cooperative early exit, block-wide color/depth reduction; `FORWARD::render` wrapper updated to accept and forward `pixel_coords`/`num_pixels` (closes Gap 5)
+- `auxiliary.h` — **(new this update, uncommitted)**: `NUM_WARPS` changed from floor to ceiling division (`(BLOCK_SIZE+31)/32`) — floor division gives 0 for map's `BLOCK_SIZE=16`, sizing `renderCUDA`'s shared arrays as zero-length
 
 ### Not yet touched
 - `rasterizer_impl.h` (both rasterizers) — `GeometryState`/`BinningState` structs unchanged
@@ -134,6 +167,8 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 **Commits (most recent first):**
 ```
+<pending> feat(cuda-forward): CU5.1-CU5.6 sparse renderCUDA + Checkpoint B harness  [CU5.1-5.6, port/tests/test_render.cu]
+cec8904 feat(cuda-impl): CU4.1-CU4.5 - switch dispatch from tile-duplication to atomic pixel-key counting  [CU4.1-4.5]
 7ac1fd3 test(cuda-preprocess): validate preprocessCUDA key generation         [CU3.7 - port/tests/ harness]
 342d88d milestone 1                                                              [CU3.4+CU3.5(fixed)+CU3.6, roadmap Gap 4, STATUS.md]
 4a96a74 Status
@@ -157,7 +192,7 @@ history over a message string.
 
 ---
 
-## 5. Roadmap gaps found and resolved (Gaps 1–8)
+## 5. Roadmap gaps found and resolved (Gaps 1–10)
 
 **Gap 1 — buffer ownership contradiction.** CU3.2 originally said
 `gaussian_keys_unsorted`/`gaussian_values_unsorted` belonged to a new
@@ -300,6 +335,84 @@ All four of Gaps 6–8 (and the deferred Gap 5) live in the same `CU4.5`
 commit/region since they're all direct, load-bearing consequences of the
 same tile→pixel indexing switch that CU4.5 performs.
 
+**Gap 5 (closed) — the `FORWARD::render()` wrapper fix landed in CU5.1**
+as planned: `void FORWARD::render(...)` in `forward.cu` now takes
+`const int2* pixel_coords, int num_pixels` and forwards them to
+`renderCUDA`, matching `forward.h`'s CU1.3 declaration exactly. This
+cleared the `rasterizer_impl.cu:342` "too few arguments" error (CU4.5)
+and, once CU5.1 landed, the `forward.cu` "should have been declared
+inside FORWARD" error too.
+
+**Gap 9 — CU5.3/CU5.4's pseudocode describes a transmittance algorithm
+that is wrong for any block with more than one warp.** The roadmap's
+warp prefix-scan snippet has each of a block's `NUM_WARPS` warps
+independently track its own `collected_T[warp_idx]` across rounds, with
+no mechanism for a warp to account for the Gaussians processed by
+*lower-indexed warps within the same round*. Since a single round's
+`BLOCK_SIZE` threads span all warps simultaneously processing
+`BLOCK_SIZE` **consecutive-by-depth** Gaussians for that pixel, warp 1's
+first Gaussian in a round is strictly farther than every Gaussian warp 0
+processed in that same round — correct front-to-back compositing
+requires warp 1's starting transmittance to already include warp 0's
+contribution *from that same round*, not just carry-over from previous
+rounds. The roadmap's pseudocode never does this. For track
+(`BLOCK_SIZE=256` → 8 warps) this is not a corner case — it is the normal
+case — and would silently produce wrong (but plausible-looking) colors
+and depths, not a crash or an obviously-dead branch like Gaps 4/6.
+
+Root-caused against the actual SPLATONIC reference source in this repo
+(`SPLATONIC/{track,map}-rasterization/cuda_rasterizer/forward.cu`'s real
+`renderCUDA`), which resolves this with a two-phase scheme: each warp
+computes its own local prefix product and stashes its *own* full local
+product into `collected_T[warp_idx]`; a `__syncthreads()`; then **every
+thread loops `for (j = 0; j < warp_idx; j++) T *= collected_T[j]`**,
+serially folding in every lower-indexed warp's contribution. The
+highest-indexed warp then reseeds every slot of `collected_T[]` with "T
+after this whole round" (replicated across all slots) for the next
+round's uniform carry-in.
+
+**Resolved:** implemented CU5.3–CU5.6 against this verified algorithm
+instead of the roadmap's pseudocode, adapted to MonoGS's data layout
+(`point_list` carries only a Gaussian index, not a precomputed
+`{gid, power}` pair like upstream SPLATONIC — CU3.6 never carries power
+through the sort — so `alpha` is recomputed in `renderCUDA` from
+`points_xy_image`/`conic_opacity` using the dense kernel's own raw-opacity
+formula, `alpha = opacity * exp(power)`, not SPLATONIC's log-opacity
+scheme). Also fixed two real problems this uncovered:
+
+- **Gap 9b (my own translation bug, found via Checkpoint B):** SPLATONIC
+  reuses a single variable `T`, reassigning `T = cur_T * (1 - alpha)` at
+  the end of each round's per-thread processing so it persists as "the
+  running transmittance" regardless of warp count. My first translation
+  introduced a second variable and updated only it, leaving the
+  register `T` stale (never reflecting the current round's own
+  contribution). This is invisible when the cross-warp fold loop happens
+  to run ≥1 iteration for the very last thread (track, 8 warps — the
+  last thread lives in the last warp, which folds in all others, masking
+  the bug) but breaks completely when `NUM_WARPS == 1` (map, `BLOCK_SIZE=16`
+  — the fold loop is `for(j<0)`, a permanent no-op, so `T` never updates
+  at all). Manifested as `out_opacity` stuck at exactly 0.0 for every
+  pixel on `map` only, caught immediately by Checkpoint B (§6e). Fixed by
+  writing the post-Gaussian value back into `T` itself, matching
+  SPLATONIC's reuse pattern.
+- **Gap 10 (present in SPLATONIC's own source too) — a missing barrier
+  between the cross-warp fold loop and the "last warp reseeds
+  `collected_T[]`" step.** Different warps finish the fold loop (`for
+  j < warp_idx`) at different times — a fast, high-index warp can reach
+  the reseed write before a slower warp has finished reading the exact
+  slots that write clobbers. `compute-sanitizer --tool racecheck` flagged
+  this precisely (1 error, 1 warning on `track`) after Gap 9b's fix.
+  SPLATONIC's real source has the identical gap (no barrier there
+  either) — not fixing something the port broke, but hardening past a
+  latent race that happens not to manifest in SPLATONIC's or this port's
+  functional tests. Fixed by adding one `__syncthreads()`. Also added a
+  `__syncwarp(mask)` between the `collected_T[warp_idx]` read (all lanes)
+  and its later same-round overwrite (lane 0 only), which racecheck also
+  flagged (1 warning) — likely relies on `__shfl_sync`-implied
+  convergence in practice, hardened for clarity on architectures with
+  independent thread scheduling. After both fixes: 0 hazards on both
+  tilings, plain and 600-Gaussian-stack stress scenes alike.
+
 ---
 
 ## 6. Build verification (`pip install -e .`, both rasterizers)
@@ -429,20 +542,91 @@ very next step.
 
 ---
 
+## 6d. CU5.1–CU5.6 build results
+
+Same process, after CU5.1–CU5.6 (Gap 5's wrapper fix + the SPLATONIC-based
+`renderCUDA` rewrite). **Error count dropped from 6 to 5** — the
+`forward.cu:440` wrapper-mismatch error is gone; `rasterizer_impl.cu` and
+`forward.cu` both compile clean start-to-finish on both packages now.
+
+| Error | File:line | Expected? | Why |
+|---|---|---|---|
+| `argument of type ... incompatible ...` (5 errors) | `rasterize_points.cu:113-119` | ✅ Yes | CU6.1 territory, unchanged — the only thing left blocking a full `pip install` |
+
+---
+
+## 6e. Checkpoint B: end-to-end `Rasterizer::forward()` verification
+
+Per the earlier "verification checkpoint" methodology (Checkpoint A for
+CU3, applied again here for CU4+CU5): `port/tests/test_render.cu` (+
+`run_checkpoint_b.sh`) links **directly against the real, unmodified**
+`rasterizer_impl.cu` + `forward.cu` + `backward.cu` (the last only to
+satisfy the linker — `Rasterizer::backward` references `BACKWARD::*`
+symbols even though it's never called; nothing in the tested path touches
+it) — no copying, unlike Checkpoint A, since these files now compile on
+their own. Calls `CudaRasterizer::Rasterizer::forward()` through its real
+public interface (`rasterizer.h`), with `geometryBuffer`/`binningBuffer`/
+`imageBuffer` backed by plain `cudaMalloc`.
+
+**Scene:** 5 hand-placed Gaussians (overlapping-depth triple to stress
+compositing order, one clipped by the FOV limit to exercise
+`computeCov2D`'s shear terms, one frustum-culled) plus a 600-Gaussian
+stack at a single pixel location (depths 0.5–18.5, deterministic
+pseudo-random opacity/color) specifically to force multiple rounds
+(`round = BLOCK_SIZE` Gaussians) — 3 rounds on track, 38 on map — since
+the hand-placed scene alone never exceeded 1 round and would not have
+caught the cross-round carry-over bug described in Gap 9b.
+
+**CPU reference:** replicates `computeCov2D` in full (including the FOV
+clip and shear terms — not an approximation) to get exact conic/radius
+per Gaussian, replicates `preprocessCUDA`'s pruning gate exactly (distance
+from `point_image` + `logf(opacity)`, threshold at `lowest_alpha_coeff`)
+to determine which (Gaussian, pixel) pairs would survive to the sort, then
+composites front-to-back per pixel using `renderCUDA`'s own alpha formula
+(`alpha = opacity * exp(power)`, no log-opacity, matching the unchanged
+dense-kernel convention).
+
+**Results, both scenes, both tilings:**
+
+| Check | track (`BLOCK_SIZE=256`, 8 warps) | map (`BLOCK_SIZE=16`, 1 warp) |
+|---|---|---|
+| Color/depth/opacity match CPU reference (tol 1e-3) | 0/256 mismatches | 0/256 mismatches |
+| Same, 600-Gaussian multi-round stress scene | 0/256 mismatches | 0/256 mismatches |
+| `n_touched.sum() > 0` (CU5.5's own "N" check) | yes | yes |
+| Frustum-culled Gaussian (`radii[4]==0`) contributes nothing | confirmed | confirmed |
+| `compute-sanitizer` memcheck | 0 errors | 0 errors |
+| `compute-sanitizer` racecheck (before Gap 10 fix) | 1 error, 1 warning | 1 warning |
+| `compute-sanitizer` racecheck (after Gap 10 fix) | 0 hazards | 0 hazards |
+
+This is the strongest evidence available short of a live SLAM run that
+CU5.1–CU5.6's sparse forward pass is numerically correct on both
+rasterizer configurations, including the specific multi-warp and
+sub-warp edge cases that produced Gaps 9b and 10.
+
+---
+
 ## 7. Immediate next steps
 
-1. **Commit CU3.4, CU3.5 (with the Gap 4 fix), CU3.6, and the roadmap's
-   Gap 4 clarification** — all implemented and verified this update, none
-   committed yet (see §4 for the suggested split and commit messages).
-2. (Optional, cosmetic) Fold the Gap 3 clarification into
+1. **Commit CU5.1–CU5.6** (`forward.cu`'s sparse `renderCUDA` + wrapper
+   fix, `auxiliary.h`'s `NUM_WARPS` fix, `port/tests/test_render.cu` +
+   `run_checkpoint_b.sh`) — implemented and verified this update, not
+   committed yet.
+2. **CU5.8** (regression test on dense MonoGS — a real tracking loop
+   compared against the dense baseline) genuinely needs a live `slam.py`
+   run with a real dataset and the dispatch switch wired up enough to
+   invoke the sparse path, which isn't possible until CU6/CU7/CU9 land.
+   Deferred; Checkpoint B (§6e) is the strongest available substitute for
+   now (exact numerical match against a brute-force reference).
+3. Continue to **CU6.1–CU6.4**: add `pixel_range`/`pixel_coords` to
+   `rasterize_points.cu`'s forward signature (the last thing standing
+   between this port and a fully-`pip install`-able package), switch to
+   the static buffer there too, add `pixel_coords` to the backward
+   signature, update `ext.cpp`'s pybind registrations.
+4. Then **CU7 (autograd wiring)**, **CU8 (sparse backward kernel — apply
+   the same SPLATONIC-cross-reference rigor used for CU5, since backward
+   is at least as algorithmically delicate as forward)**, **CU9
+   (activate the dispatch switch + smoke test)**, and **Milestone 5
+   (validation)**.
+5. (Optional, cosmetic) Fold the Gap 3 clarification into
    `MILESTONE_PLAN_V3.md`'s CU3.2 text so the roadmap document itself
    reflects what was actually authorized and built.
-3. Continue to **CU3.7** (`Compile + Unit Test preprocessCUDA`,
-   tag `milestone-4b-cuda-preprocess`) — the roadmap's own version of the
-   Checkpoint A verification already performed in §6b above; decide
-   whether to formalize `test_preprocess.cu` into a committed
-   `port/tests/` regression test or treat CU3.7 as satisfied by this
-   session's harness run.
-4. The `FORWARD::render()` and `rasterize_points.cu` build failures are
-   expected to persist, unresolved, through CU3.7 and CU4.1–CU4.4 — they
-   only clear once CU4.5 and CU6.1 land.

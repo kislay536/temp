@@ -16,7 +16,10 @@
 #include "stdio.h"
 
 #define BLOCK_SIZE (BLOCK_X * BLOCK_Y)
-#define NUM_WARPS (BLOCK_SIZE/32)
+// SPLATONIC: ceiling division, not floor -- map's BLOCK_SIZE=16 is less than
+// one warp; floor division would give NUM_WARPS=0 and size collected_T[]/
+// collected_color[] (renderCUDA) as zero-length shared arrays.
+#define NUM_WARPS ((BLOCK_SIZE + 31)/32)
 
 // SPLATONIC: ln(255) — preemptive alpha culling threshold in preprocessCUDA
 __device__ constexpr float lowest_alpha_coeff = 5.54126354515842f;

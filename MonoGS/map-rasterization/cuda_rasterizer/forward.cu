@@ -288,11 +288,25 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	}
 }
 
-// Main rasterization method. Collaboratively works on one tile per
-// block, each thread treats one pixel. Alternates between fetching 
-// and rasterizing data.
+// SPLATONIC: number of active lanes in a warp for THIS build's BLOCK_SIZE.
+// track: BLOCK_SIZE=256 -> full 32-lane warps. map: BLOCK_SIZE=16 -> a single
+// partial warp. Both are powers of two, so shuffle-reduce loops that bound
+// on this (instead of a hardcoded 32) are correct for either configuration.
+#define WARP_SIZE_EFF (BLOCK_SIZE < 32 ? BLOCK_SIZE : 32)
+
+// SPLATONIC: one block per SAMPLED pixel (not one block per tile). All
+// threads in the block cooperatively walk that pixel's sorted Gaussian range
+// (nearest-to-farthest), maintaining a running transmittance T via a warp
+// prefix-scan, then a cross-warp serialization step so T stays correct across
+// the whole block, not just within one warp. This mirrors the real SPLATONIC
+// renderCUDA (SPLATONIC/{track,map}-rasterization/cuda_rasterizer/forward.cu),
+// adapted to MonoGS's data layout: point_list is a plain Gaussian-index array
+// (no precomputed power carried through the sort, unlike upstream SPLATONIC),
+// so alpha is recomputed here from points_xy_image/conic_opacity, exactly as
+// the original dense renderCUDA did -- opacity is raw (not log), so
+// alpha = opacity * exp(power), matching the dense formula.
 template <uint32_t CHANNELS>
-__global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
+__global__ void __launch_bounds__(BLOCK_SIZE)
 renderCUDA(
 	const uint2* __restrict__ ranges,
 	const uint32_t* __restrict__ point_list,
@@ -305,120 +319,202 @@ renderCUDA(
 	const float* __restrict__ bg_color,
 	float* __restrict__ out_color,
 	const float* __restrict__ depth,
-	float* __restrict__ out_depth, 
+	float* __restrict__ out_depth,
 	float* __restrict__ out_opacity,
-	int * __restrict__ n_touched)
+	int* __restrict__ n_touched,
+	const int2* __restrict__ pixel_coords,
+	int num_pixels)
 {
-	// Identify current tile and associated min/max pixel range.
-	auto block = cg::this_thread_block();
-    uint32_t horizontal_blocks = (W + BLOCK_X - 1) / BLOCK_X;
-	// uint32_t horizontal_blocks = gridDim.x; # TODO Maybe it's different?
-	uint2 pix_min = { block.group_index().x * BLOCK_X, block.group_index().y * BLOCK_Y };
-	uint2 pix_max = { min(pix_min.x + BLOCK_X, W), min(pix_min.y + BLOCK_Y , H) };
-	uint2 pix = { pix_min.x + block.thread_index().x, pix_min.y + block.thread_index().y };
-	uint32_t pix_id = W * pix.y + pix.x;
-	float2 pixf = { (float)pix.x, (float)pix.y };
+	int pixel_id = blockIdx.x;
+	if (pixel_id >= num_pixels)
+		return;
+
+	const int2 pix = pixel_coords[pixel_id];
+	const float2 pixf = { (float)pix.x, (float)pix.y };
+	const uint32_t pix_id = W * pix.y + pix.x;
+	const int lane = threadIdx.x & (WARP_SIZE_EFF - 1);
+	const int warp_idx = threadIdx.x / WARP_SIZE_EFF;
 
 	// Check if this thread is associated with a valid pixel or outside.
-	bool inside = pix.x < W&& pix.y < H;
-	// Done threads can help with fetching, but don't rasterize
+	bool inside = (pix.x >= 0 && pix.x < W && pix.y >= 0 && pix.y < H);
+	// Done threads can help with fetching, but don't rasterize.
 	bool done = !inside;
 
-	// Load start/end range of IDs to process in bit sorted list.
-	uint2 range = ranges[block.group_index().y * horizontal_blocks + block.group_index().x];
+	// Load start/end range of IDs to process in the sorted list for THIS pixel
+	// (ranges is indexed by sampled-pixel index since CU4.5/identifyTileRanges).
+	uint2 range = ranges[pixel_id];
 	const int rounds = ((range.y - range.x + BLOCK_SIZE - 1) / BLOCK_SIZE);
-	int toDo = range.y - range.x;
 
-	// Allocate storage for batches of collectively fetched data.
-	__shared__ int collected_id[BLOCK_SIZE];
-	__shared__ float2 collected_xy[BLOCK_SIZE];
-	__shared__ float4 collected_conic_opacity[BLOCK_SIZE];
-	__shared__ float collected_depth[BLOCK_SIZE];
+	// collected_T[w] serves three purposes across a round's lifetime: (1) at
+	// the top of a round, warp w's carried-in T from the previous round; (2)
+	// mid-round, warp w's own local full product, stashed for lower-indexed
+	// warps... no, HIGHER-indexed warps to fold in via the cross-warp loop
+	// below; (3) at the end of a round, every slot is overwritten with "T
+	// after this whole round," replicated across all NUM_WARPS slots, so
+	// every warp starts the next round from the correct value.
+	__shared__ float collected_T[NUM_WARPS];
+	if (lane == 0) collected_T[warp_idx] = 1.0f;
+	__syncthreads();
 
-	// Initialize helper variables
-	float T = 1.0f;
-	uint32_t contributor = 0;
-	uint32_t last_contributor = 0;
+	float T = 1.0f, cur_T = 1.0f;
 	float C[CHANNELS] = { 0 };
 	float D = 0.0f;
+	int progress = threadIdx.x - BLOCK_SIZE;
 
-	// Iterate over batches until all done or range is complete
-	for (int i = 0; i < rounds; i++, toDo -= BLOCK_SIZE)
+	for (int i = 0; i < rounds; i++)
 	{
-		// End if entire block votes that it is done rasterizing
-		int num_done = __syncthreads_count(done);
-		if (num_done == BLOCK_SIZE)
+		if (__syncthreads_or(done))
 			break;
 
-		// Collectively fetch per-Gaussian data from global to shared
-		int progress = i * BLOCK_SIZE + block.thread_rank();
-		if (range.x + progress < range.y)
+		int gid = 0;
+		float alpha = 0.0f;
+		progress += BLOCK_SIZE;
+		const bool in_range = range.x + progress < range.y;
+		if (in_range)
 		{
-			int coll_id = point_list[range.x + progress];
-			collected_id[block.thread_rank()] = coll_id;
-			collected_xy[block.thread_rank()] = points_xy_image[coll_id];
-			collected_conic_opacity[block.thread_rank()] = conic_opacity[coll_id];
-			collected_depth[block.thread_rank()] = depth[coll_id];
-		}
-		block.sync();
-
-		// Iterate over current batch
-		for (int j = 0; !done && j < min(BLOCK_SIZE, toDo); j++)
-		{
-			// Keep track of current position in range
-			contributor++;
-
-			// Resample using conic matrix (cf. "Surface 
-			// Splatting" by Zwicker et al., 2001)
-			float2 xy = collected_xy[j];
+			gid = point_list[range.x + progress];
+			float2 xy = points_xy_image[gid];
 			float2 d = { xy.x - pixf.x, xy.y - pixf.y };
-			float4 con_o = collected_conic_opacity[j];
-			float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
-			if (power > 0.0f)
-				continue;
-
-			// Eq. (2) from 3D Gaussian splatting paper.
-			// Obtain alpha by multiplying with Gaussian opacity
-			// and its exponential falloff from mean.
-			// Avoid numerical instabilities (see paper appendix). 
-			float alpha = min(0.99f, con_o.w * exp(power));
-			if (alpha < 1.0f / 255.0f) {
-				continue;
-			}
-			float test_T = T * (1 - alpha);
-			if (test_T < 0.0001f)
-			{
-				done = true;
-				continue;
-			}
-			// Eq. (3) from 3D Gaussian splatting paper.
-			for (int ch = 0; ch < CHANNELS; ch++) {
-				C[ch] += features[collected_id[j] * CHANNELS + ch] * alpha * T;
-			}
-			D += collected_depth[j] * alpha * T;
-			// Keep track of how many pixels touched this Gaussian.
-			if (test_T > 0.5f) {
-				atomicAdd(&(n_touched[collected_id[j]]), 1);
-			}
-			T = test_T;
-
-			// Keep track of last range entry to update this
-			// pixel.
-			last_contributor = contributor;
+			float4 co = conic_opacity[gid];
+			float power = -0.5f * (co.x * d.x * d.x + co.z * d.y * d.y) - co.y * d.x * d.y;
+			if (power <= 0.0f)
+				alpha = min(0.99f, co.w * expf(power));
 		}
+
+		const unsigned mask = __activemask();
+
+		// Intra-warp inclusive prefix product of (1 - alpha).
+		cur_T = 1.0f - alpha;
+		for (int offset = 1; offset < WARP_SIZE_EFF; offset <<= 1)
+		{
+			float tmp = __shfl_up_sync(mask, cur_T, offset);
+			if (lane >= offset) cur_T *= tmp;
+		}
+
+		// This warp's carried-in T (from earlier rounds, or from lower-index
+		// warps within this same round once stashed a few lines below).
+		T = collected_T[warp_idx];
+		__syncwarp(mask); // all lanes finish reading collected_T[warp_idx] before lane 0 overwrites it below
+		float warp_total = __shfl_sync(mask, cur_T, WARP_SIZE_EFF - 1);
+		if (lane == 0) collected_T[warp_idx] = warp_total;
+
+		cur_T = __shfl_up_sync(mask, cur_T, 1);
+		if (lane == 0) cur_T = 1.0f;
+
+		// Serialize across warps: every thread folds in every LOWER-indexed
+		// warp's own local product, so T becomes the true transmittance
+		// before this thread's own Gaussian -- accounting for every Gaussian
+		// nearer than it within this same round, not just within its own warp.
+		__syncthreads();
+		for (int j = 0; j < warp_idx; j++)
+			T *= collected_T[j];
+
+		// Barrier before the last warp overwrites collected_T[]: without this,
+		// a fast warp could reach the write below before a slower warp has
+		// finished the cross-warp read loop above, clobbering the values it
+		// still needs (present in SPLATONIC's own source too -- hardened here).
+		__syncthreads();
+
+		// The last warp seeds every slot of collected_T with "T after this
+		// whole round" (same value in every slot) so the next round's
+		// top-of-loop read is correct for every warp uniformly -- their next
+		// Gaussians all come strictly after this round's last Gaussian.
+		if (warp_idx == NUM_WARPS - 1 && lane < NUM_WARPS)
+			collected_T[lane] = warp_total * T;
+
+		float T_before = cur_T * T;        // T strictly before this thread's own Gaussian
+		cur_T = T_before * (1.0f - alpha); // T strictly after this thread's own Gaussian
+		T = cur_T;                         // keep T in sync as the running value across rounds --
+		                                    // needed so the post-loop "else" branch (loop ran to
+		                                    // completion, no early exit) reads a live value: with
+		                                    // NUM_WARPS==1 (map) the cross-warp fold loop above is a
+		                                    // no-op, so T is never otherwise updated within a round.
+
+		bool contributes = in_range && !done && alpha > 1.0f / 255.0f;
+		if (contributes)
+		{
+			for (int c = 0; c < CHANNELS; c++)
+				C[c] += features[gid * CHANNELS + c] * alpha * T_before;
+			D += depth[gid] * alpha * T_before;
+
+			// MonoGS: record that this Gaussian is visible at this pixel.
+			// T_before > 0.5 means the ray hasn't been mostly absorbed yet.
+			// Must be atomic: multiple pixel-blocks can share a Gaussian.
+			if (T_before > 0.5f)
+				atomicAdd(&n_touched[gid], 1);
+
+			if (cur_T < 0.0001f)
+				done = true;
+		}
+		__syncthreads();
 	}
 
-	// All threads that treat valid pixel write out their final
-	// rendering data to the frame and auxiliary buffers.
-	if (inside)
+	// Determine how many Gaussians this pixel's block actually examined
+	// before stopping, and the true final T -- mirrors SPLATONIC's own
+	// scheme (needed by BACKWARD to know where to resume, CU8 territory).
+	int num_done = __syncthreads_count(done);
+	if (num_done > 0)
 	{
-		final_T[pix_id] = T;
-		n_contrib[pix_id] = last_contributor;
-		for (int ch = 0; ch < CHANNELS; ch++) {
-			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
+		if ((int)threadIdx.x == BLOCK_SIZE - num_done)
+		{
+			n_contrib[pix_id] = progress;
+			final_T[pix_id] = cur_T;
+			collected_T[0] = cur_T;
 		}
-		out_depth[pix_id] = D;
-		out_opacity[pix_id] = 1 - T;
+	}
+	else
+	{
+		if ((int)threadIdx.x == BLOCK_SIZE - 1)
+		{
+			n_contrib[pix_id] = progress + 1;
+			final_T[pix_id] = T;
+			collected_T[0] = T;
+		}
+	}
+	__syncthreads();
+
+	// Reduce this thread's private per-Gaussian accumulators across the whole
+	// block: each thread only summed the Gaussians at its own lane position
+	// across rounds, so the true per-pixel color/depth is the sum over all
+	// BLOCK_SIZE threads, not just one thread's own partial view.
+	__shared__ float collected_color[NUM_WARPS * CHANNELS];
+	__shared__ float collected_depth_sum[NUM_WARPS];
+	{
+		const unsigned mask = __activemask();
+		for (int c = 0; c < CHANNELS; c++)
+		{
+			float v = C[c];
+			for (int offset = 1; offset < WARP_SIZE_EFF; offset <<= 1)
+				v += __shfl_down_sync(mask, v, offset);
+			if (lane == 0) collected_color[warp_idx * CHANNELS + c] = v;
+		}
+		float v = D;
+		for (int offset = 1; offset < WARP_SIZE_EFF; offset <<= 1)
+			v += __shfl_down_sync(mask, v, offset);
+		if (lane == 0) collected_depth_sum[warp_idx] = v;
+	}
+	__syncthreads();
+
+	if (warp_idx == 0)
+	{
+		const unsigned mask = __activemask();
+		float T_final = collected_T[0];
+		for (int c = 0; c < CHANNELS; c++)
+		{
+			float v = (lane < NUM_WARPS) ? collected_color[lane * CHANNELS + c] : 0.0f;
+			for (int offset = 1; offset < WARP_SIZE_EFF; offset <<= 1)
+				v += __shfl_down_sync(mask, v, offset);
+			if (lane == 0 && inside)
+				out_color[c * H * W + pix_id] = v + T_final * bg_color[c];
+		}
+		float dsum = (lane < NUM_WARPS) ? collected_depth_sum[lane] : 0.0f;
+		for (int offset = 1; offset < WARP_SIZE_EFF; offset <<= 1)
+			dsum += __shfl_down_sync(mask, dsum, offset);
+		if (lane == 0 && inside)
+		{
+			out_depth[pix_id] = dsum;
+			out_opacity[pix_id] = 1.0f - T_final;
+		}
 	}
 }
 
@@ -435,9 +531,11 @@ void FORWARD::render(
 	const float* bg_color,
 	float* out_color,
 	const float* depth,
-	float* out_depth, 
+	float* out_depth,
 	float* out_opacity,
-	int* n_touched)
+	int* n_touched,
+	const int2* pixel_coords,
+	int num_pixels)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
@@ -453,7 +551,9 @@ void FORWARD::render(
 		depth,
 		out_depth,
 		out_opacity,
-		n_touched);
+		n_touched,
+		pixel_coords,
+		num_pixels);
 }
 
 void FORWARD::preprocess(int P, int D, int M,
