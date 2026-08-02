@@ -1496,9 +1496,43 @@ needs contiguous *blocks* of dense frames (e.g., ~10-15 consecutive dense
 frames every N frames), not single isolated flips — a materially
 different, more expensive schedule than mapping's own 1-in-4 single-frame
 pattern (which works for mapping's own reasons, unrelated to this).
-Whether that's worth the added dense-tracking cost (losing more of
-sparse's speed advantage than a naive 1-in-4 schedule would) is a
-tradeoff for the roadmap owner to weigh — not re-tested tonight given
-time already spent; the next concrete experiment is a
-`tracking_flip_ratio`-and-block-length variant (e.g., 12 consecutive
-dense frames every 50) rather than a single-frame period.
+
+### Second prototype tested (block-based) — also negative, and explains the deeper problem
+
+Implemented `tracking_reanchor_period`/`tracking_reanchor_block`
+(`slam_frontend.py`, both default `0`/disabled): a contiguous run of
+`tracking_reanchor_block` dense frames every `tracking_reanchor_period`
+frames. Tested 12 consecutive dense frames every 50
+(`configs/mono/tum/fr1_desk_splatonic_reanchor.yaml`, ~24% dense frames
+overall). Full-sequence result: **RMSE ATE 0.705m** — marginally better
+than the naive flip (0.797m) and the no-fix baseline (0.726m), but still
+nowhere close to acceptable (dense's own baseline is 0.03m). PSNR/SSIM
+were slightly *worse* than baseline (13.44/0.47 vs. 14.35/0.51).
+
+**Why a locally-working fix doesn't fix the aggregate metric:** the
+reported RMSE ATE is computed over the *entire* trajectory (Umeyama-
+aligned), not just the final pose. Even though each 12-frame dense block
+does genuinely re-anchor *instantaneous* calibration (as finding 11
+showed directly), the other ~38 frames between blocks still accumulate
+drift the way sparse always does — and RMSE-over-the-whole-trajectory
+sums up *every* excursion along the way, not just the current state. A
+periodic fix that recovers-then-redrifts in a sawtooth pattern still logs
+a bad cumulative number even if no single point is ever as bad as an
+unrecovered run would eventually reach. Fixing the *aggregate* metric
+this way would need either a much higher dense-frame fraction (eroding
+most of sparse's speed advantage — the whole point of the port), true
+loop closure/global bundle adjustment (a substantially larger feature,
+out of scope for a quick fix), or actually finding and fixing the
+per-frame root cause itself (returning to the still-open "why" question:
+opacity-weighting bias and exposure-compensation coupling remain
+untested candidates, see finding 9's discussion above).
+
+**Updated recommendation:** periodic dense re-anchoring, at any
+modest ratio, is not a viable fix for the aggregate ATE metric — it only
+helps instantaneous drift while active. This isn't wasted work (rules out
+a whole class of "cheap patch" solutions, cleanly, with real numbers) but
+it does mean a real fix needs either substantially more dense-tracking
+time (defeating the port's purpose) or the deeper root-cause
+investigation this session set aside. That decision — and whether it's
+worth pursuing further tonight vs. on the A100 — is for the roadmap
+owner.

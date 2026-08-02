@@ -1,0 +1,6 @@
+inherit_from: "configs/mono/tum/fr1_desk.yaml"
+
+Training:
+  use_splatonic: true
+  tracking_reanchor_period: 50
+  tracking_reanchor_block: 12

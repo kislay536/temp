@@ -233,6 +233,17 @@ class FrontEnd(mp.Process):
         if tracking_flip_ratio and cur_frame_idx % tracking_flip_ratio == 0:
             use_splatonic = False
 
+        # Block variant: a CONTIGUOUS run of tracking_reanchor_block dense
+        # frames every tracking_reanchor_period frames, instead of single
+        # isolated flips (which STATUS.md section 9 showed are too weak a
+        # dose -- one isolated dense frame doesn't accumulate enough
+        # re-anchoring before the next sparse frame reintroduces the bias).
+        # Disabled by default (period 0).
+        reanchor_period = self.config["Training"].get("tracking_reanchor_period", 0)
+        reanchor_block = self.config["Training"].get("tracking_reanchor_block", 0)
+        if reanchor_period and (cur_frame_idx % reanchor_period) < reanchor_block:
+            use_splatonic = False
+
         force_dense_str = os.environ.get("SPLATONIC_DEBUG_FORCE_DENSE_FRAMES")
         if force_dense_str:
             force_dense_frames = {int(x) for x in force_dense_str.split(",")}
