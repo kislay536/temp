@@ -1,6 +1,6 @@
 # SPLATONIC-on-MonoGS Port — Status
 
-Last updated: 2026-08-02 (post CU3.6 + CU3.5 bug fix, pre-commit)
+Last updated: 2026-08-02 (Milestone 4b closed — CU3.1–CU3.7 done, tagged `milestone-4b-cuda-preprocess`)
 
 Roadmap: `port/MILESTONE_PLAN_V3.md`. This document is a snapshot of what has
 been done, what changed where, and what is still open. It is not itself a
@@ -41,8 +41,15 @@ test scene, vs. 0% before the fix), matches a from-scratch CPU reference
 exactly, and responds correctly to per-Gaussian opacity. Full build of both
 rasterizers still fails at exactly the same two places the roadmap already
 anticipates (CU4.5's render dispatch, CU6.1's Python/C++ bridge) — nothing
-else, and no new failures from CU3.4–CU3.6. **Nothing from this update is
-committed yet** — see §4.
+else, and no new failures from CU3.4–CU3.6. CU3.4–CU3.6 and the roadmap's
+Gap 4 fix are now committed (`342d88d`). **CU3.7 is closed**: the harness
+was promoted to `port/tests/test_preprocess.cu` (+ `run_checkpoint_a.sh`),
+satisfying CU3.7's O/R verification levels for both tilings; its literal
+"C" level (full `pip install`) is deferred to CU4.5/CU6.1 per the
+milestone-boundary note below, matching how the roadmap itself already
+defers CU3.7's "N" level. Tagged `milestone-4b-cuda-preprocess`. **Milestone
+4b (CU1–CU3, the interface + preprocess stage) is now fully closed.** Work
+continues downstream into CU4 (dispatch) and beyond.
 
 ---
 
@@ -61,10 +68,11 @@ committed yet** — see §4.
 | CU3.1 | 5 new params → `preprocessCUDA` kernel + `FORWARD::preprocess()` wrapper (`forward.cu`) | ✅ Done, committed `7eec8aa` |
 | CU3.2 | Bind key buffers to `BinningState`, static sizing, sequencing, `num_rendered_ptr`, `Rasterizer::forward()` signature fix (`rasterizer_impl.cu`) | ✅ Done, committed `cdb7e67` — see §6 for build results |
 | CU3.3 | Remove final `tiles_touched` write from `preprocessCUDA` (`forward.cu`) | ✅ Done, committed `7fb0741` — see §6 for build results |
-| CU3.4 | Add tile/pixel iteration loop, no-op body (`forward.cu`) | ✅ Implemented, **uncommitted** — verified via Checkpoint A harness |
-| CU3.5 | Add alpha pruning (`lowest_alpha_coeff`) (`forward.cu`) | ✅ Implemented + **roadmap+code bug fixed**, **uncommitted** — see §5 Gap 4, §6 |
-| CU3.6 | Add key packing + `atomicAdd` slot emission (`forward.cu`) | ✅ Implemented, **uncommitted** — verified via Checkpoint A harness |
-| CU3.7–CU9.2 | Unit test tag, dispatch, Python bindings, backward pass | Not started |
+| CU3.4 | Add tile/pixel iteration loop, no-op body (`forward.cu`) | ✅ Done, committed `342d88d` — verified via Checkpoint A harness |
+| CU3.5 | Add alpha pruning (`lowest_alpha_coeff`) (`forward.cu`) | ✅ Done + **roadmap+code bug fixed**, committed `342d88d` — see §5 Gap 4, §6 |
+| CU3.6 | Add key packing + `atomicAdd` slot emission (`forward.cu`) | ✅ Done, committed `342d88d` — verified via Checkpoint A harness |
+| CU3.7 | Compile + unit test `preprocessCUDA`, tag `milestone-4b-cuda-preprocess` | ✅ Done — harness promoted to `port/tests/`, O/R satisfied, C deferred to CU4.5/CU6.1 (see §6b) |
+| CU4.1–CU9.2 | Dispatch, sparse forward/backward kernels, Python bindings, activation | Not started |
 
 ---
 
@@ -117,9 +125,13 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 - `milestone-2-python`
 - `milestone-3-integration`
 - `milestone-4a-cuda-interfaces` (CU1.1–CU1.3)
+- `milestone-4b-cuda-preprocess` (CU1–CU3, i.e. all of CU3.1–CU3.7 — **new this update**)
 
 **Commits (most recent first):**
 ```
+<pending> test(cuda-preprocess): validate preprocessCUDA key generation         [CU3.7 — port/tests/ harness]
+342d88d milestone 1                                                              [CU3.4+CU3.5(fixed)+CU3.6, roadmap Gap 4, STATUS.md]
+4a96a74 Status
 7fb0741 feat(cuda-preprocess): remove tiles_touched write (replaced by pixel key gen)  [CU3.3]
 cdb7e67 feat(cuda-preprocess): bind key buffers to BinningState, allocate num_rendered_ptr  [CU3.2]
 91dd31d status                                                                    [STATUS.md + roadmap CU3.2/CU4.3 fix]
@@ -133,12 +145,10 @@ c81d27a fix: update evo trajectory alignment API for evo v1.37                  
 bc3fb9e feat: wire FLIP schedule into BackEnd.map                                 [P6]
 ```
 
-**Uncommitted right now:**
-- `MonoGS/{track,map}-rasterization/cuda_rasterizer/forward.cu` — CU3.4 + CU3.5 (fixed) + CU3.6
-- `port/MILESTONE_PLAN_V3.md` — Gap 4 (CU3.5 text correction)
-- `port/STATUS.md` — this file
-
-Suggested commit split, once you're ready: one commit for CU3.4 alone, one for CU3.5 (already containing the fix — the roadmap's originally-drafted CU3.5 formula was never functionally correct, so there is no "buggy CU3.5" state worth committing separately), one for CU3.6, and one for the roadmap's Gap 4 clarification (or fold the clarification into the CU3.5 code commit, since they're the same fix in two files). Commit names per the roadmap: `feat(cuda-preprocess): add pixel iteration loop (placeholder body)` (CU3.4), `feat(cuda-preprocess): add preemptive alpha culling in pixel loop` (CU3.5), `feat(cuda-preprocess): add key packing and atomicAdd slot emission` (CU3.6).
+Note: `342d88d`'s message ("milestone 1") doesn't match its actual content
+(CU3.4–CU3.6 + Gap 4 + STATUS.md) — it was committed directly rather than
+split per the earlier suggested plan. Left as-is; not worth rewriting
+history over a message string.
 
 ---
 
