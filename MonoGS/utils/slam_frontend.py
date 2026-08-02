@@ -130,6 +130,16 @@ class FrontEnd(mp.Process):
     def tracking(self, cur_frame_idx, viewpoint):
         prev = self.cameras[cur_frame_idx - self.use_every_n_frames]
         viewpoint.update_RT(prev.R, prev.T)
+        if os.environ.get("SPLATONIC_DEBUG_ATE"):
+            R_start = viewpoint.R.detach().clone()
+            R_gt_start = prev.R_gt.detach().to(dtype=R_start.dtype)
+            R_gt_end = viewpoint.R_gt.detach().to(dtype=R_start.dtype)
+            R_rel_gt = R_gt_start.T @ R_gt_end
+            true_step_deg = float(
+                torch.rad2deg(
+                    torch.arccos(torch.clamp((torch.trace(R_rel_gt) - 1) / 2, -1, 1))
+                ).cpu()
+            )
 
         use_splatonic = self.config["Training"].get("use_splatonic", False)
         tile_size = self.config["Training"].get("tracking_tile_size", 16)
@@ -228,7 +238,19 @@ class FrontEnd(mp.Process):
                     torch.arccos(torch.clamp((torch.trace(R_rel) - 1) / 2, -1, 1))
                 ).cpu()
             )
-            print(f"DBG_ATE frame={cur_frame_idx} t_err={t_err_norm:.4f} ang_err_deg={ang_err_deg:.3f}", flush=True)
+            R_end = viewpoint.R.detach().to(dtype=R_start.dtype)
+            R_rel_est = R_start.T @ R_end
+            est_step_deg = float(
+                torch.rad2deg(
+                    torch.arccos(torch.clamp((torch.trace(R_rel_est) - 1) / 2, -1, 1))
+                ).cpu()
+            )
+            print(
+                f"DBG_ATE frame={cur_frame_idx} t_err={t_err_norm:.4f} ang_err_deg={ang_err_deg:.3f} "
+                f"true_step_deg={true_step_deg:.3f} est_step_deg={est_step_deg:.3f} "
+                f"n_iters={tracking_itr + 1} converged={converged}",
+                flush=True,
+            )
         return render_pkg
 
     def is_keyframe(

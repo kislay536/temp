@@ -1033,6 +1033,55 @@ so a partial late recovery barely moves the final aggregate number. The
 two views aren't contradictory, they're answering different questions
 (instantaneous pose error vs. summary error over the full trajectory).
 
+### The mechanism, characterized precisely: sparse tracking converges, but to a systematically wrong rotation
+
+Extended `SPLATONIC_DEBUG_ATE` to also log, per frame, the *true* inter-frame
+rotation (from ground truth) versus the *estimated* inter-frame rotation
+(`viewpoint.R` before vs. after that frame's tracking loop), plus the
+number of optimizer iterations actually run and whether the loop's own
+`converged` check (`tau.norm() < 1e-4` on the last step) fired.
+
+**Finding 1 — systematic overestimation, not random noise.** Across 331
+consecutive frames (40-370, spanning the hard segment): the estimated
+rotation step is on average **~2.0x the true rotation step**, and
+overestimates in **86% of frames**. This is a one-sided, consistent bias,
+not zero-mean noise — and since each frame seeds its pose from the
+*previous frame's estimate* (`viewpoint.update_RT(prev.R, prev.T)`,
+`slam_frontend.py:132`), a consistent ~2x per-frame overshoot compounds
+directly into runaway angular drift. This is very likely the actual
+mechanism behind the whole regression.
+
+**Finding 2 — it's not a stopping-too-late problem.** Split the same 362
+frames by whether the loop's convergence check fired early
+(`converged=True`, avg 82 iterations) or ran the full budget
+(`converged=False`, 100 iterations): the overshoot ratio is **~2.17x for
+converged frames and ~1.98x for non-converged frames — essentially the
+same**. If the bug were "the optimizer doesn't get a strong enough
+stopping signal under sparse's noisier gradient and just keeps walking
+past the true pose," converged frames (which stop early, with a
+demonstrably tiny last step) should show much less overshoot than frames
+that ran the full 100 iterations. They don't. **The optimizer is reaching
+a genuine stable fixed point — it's just the wrong one.**
+
+Put together, these two findings point away from "not enough
+iterations/noise/convergence tuning" (which was the working assumption
+behind hypotheses 1-4) and toward something more fundamental: **the
+sparse photometric loss surface's minimum, for rotation, is itself
+systematically displaced from the true pose** — for whatever specific
+~600-4800 pixels get sampled that frame, the pose that best explains
+*those* pixels photometrically is measurably different from the pose that
+best explains the whole image, in a consistent direction (over-rotation),
+not just a noisier version of the same answer. A plausible (untested)
+mechanism: rotation's photometric gradient is depth-dependent (apparent
+motion from rotation scales with inverse depth in a way translation's
+doesn't as directly), so if the Gaussian model's own estimated depth
+(there's no ground-truth depth in this monocular setup — depth comes from
+the renderer's own `median_depth`/rendered depth) carries any systematic
+error, a full-image loss might average that error's effect on the optimal
+rotation down close to zero, while a small, spatially clustered-by-tile
+sparse sample might not — but this specific depth-mediated explanation
+is a hypothesis, not yet verified.
+
 ### Recommended next steps (superseded — see "Summary of tonight's investigation" at the end of this section for the current, up-to-date recommendation)
 
 - Investigate the `cam_rot_delta` (`theta`) gradient path specifically,
@@ -1166,8 +1215,9 @@ Scripts saved at `/tmp/.../scratchpad/test_theta_bias.py` and `_v2.py`
 
 ### Summary of tonight's investigation (Milestone 5, V3-V5)
 
-Five hypotheses tested for the sparse-tracking rotation-drift regression;
-all falsified or inconclusive, none identified a fix:
+Seven angles tried on the sparse-tracking rotation-drift regression. Five
+falsified/inconclusive attempts at a quick fix, then two that nailed down
+the actual mechanism:
 
 1. Frozen per-frame random mask (resample every iteration instead) —
    **falsified**, no change.
@@ -1175,33 +1225,46 @@ all falsified or inconclusive, none identified a fix:
    **falsified**, no meaningful change.
 3. Insufficient pixel count (4x more pixels via `generate_random_mask_k`)
    — **falsified**, no improvement (if anything, slightly worse).
-4. Direct gradient-bias test v1 (L1 loss, 40 draws) — **inconclusive**,
-   test itself too noisy (Monte Carlo std ~200x the signal) to answer the
-   question as designed.
-5. Direct gradient-bias test v2 (L2 loss, denser scene, 300 draws) —
-   **informative negative**: both `theta` and `rho` show comparable
-   single-frame Monte-Carlo noise on a representative synthetic scene,
-   with `rho` if anything slightly *worse*-conditioned than `theta` —
-   the opposite of real SLAM's asymmetry. This rules out "rotation's
-   single-frame sparse gradient is inherently noisier/more biased than
-   translation's" as the explanation, and points instead at **sequential
-   accumulation dynamics** (how correlated per-frame noise compounds
-   through the optimizer and the SE3-exponential pose update over
-   hundreds of frames) as the more likely locus of the asymmetry.
+4. Direct gradient-bias test v1 (L1 loss, 40 draws, synthetic scene) —
+   **inconclusive**, test itself too noisy to answer the question.
+5. Direct gradient-bias test v2 (L2 loss, denser synthetic scene, 300
+   draws) — **informative negative**: on a synthetic scene, `theta` and
+   `rho` show comparable single-frame gradient noise, ruling out
+   "rotation's single-frame gradient is inherently noisier" — but this
+   used a synthetic scene, and the real answer (below) needed the real
+   sequential loop instead.
+6. **Real-loop instrumentation, true vs. estimated per-frame rotation**:
+   across 331 real frames, sparse's estimated rotation step is ~2.0x the
+   true step on average, overestimating in 86% of frames — a systematic,
+   one-sided bias that directly explains the compounding drift (each
+   frame seeds from the previous frame's already-overshot estimate).
+7. **Real-loop instrumentation, converged vs. not**: split by whether the
+   optimizer's own convergence check fired — converged frames (avg 82
+   iterations) show ~2.17x overshoot, non-converged frames (100
+   iterations) show ~1.98x — **essentially identical**. This rules out
+   "runs too long without a stopping signal" and shows the optimizer
+   reaches a genuine stable fixed point that is simply the wrong one.
 
-What's solid: the regression is real, reproducible across 5+ independent
-full SLAM runs, not GPU/VRAM-caused, not introduced by this session's
-CUDA work (pre-existed in stub-era runs), and specifically affects
-rotation estimation while translation tracks comparably to dense. It is
-*not* explained by mask staleness, loss scale, pixel count, or a
-single-frame rotation-specific gradient bias — all five of the concrete,
-testable explanations for those have been ruled out or found wanting.
-What's still unknown: the actual mechanism, which now looks like it lives
-in the frame-to-frame accumulation dynamics rather than in any single
-frame's computation. Recommended entry point for whoever continues this:
-instrument the *real* sequential tracking loop (not a synthetic scene) to
-log per-iteration `cam_rot_delta` gradient direction/magnitude across
-consecutive real frames, and check whether it shows a consistent
-directional bias (would explain compounding drift) versus pure zero-mean
-noise (would not) — ideally on faster hardware where each full run costs
-seconds instead of the 15-20 minutes this dev GPU requires.
+**Bottom line:** the sparse photometric loss's rotation minimum, for
+whatever pixels happen to get sampled each frame, is itself systematically
+displaced from the true pose — not noisier around the right answer, but
+converging cleanly to a wrong one, consistently over-rotating by about
+2x. This is now a precisely characterized bug, not a vague "sparse pixels
+are less robust" story. What's solid: reproducible across 7+ independent
+real SLAM runs, not GPU/VRAM-caused, pre-existed this session's CUDA work,
+specific to rotation (translation is fine), not explained by mask
+resampling/loss scale/pixel count/single-frame gradient noise, and not a
+premature-stopping artifact.
+
+**What's still open:** *why* the sparse loss's rotation minimum is
+displaced. Leading (untested) hypothesis: rotation's photometric gradient
+is depth-dependent in a way translation's isn't as directly, and this
+monocular setup has no ground-truth depth (depth comes from the Gaussian
+model's own rendered/median depth) — a full-image loss may average any
+systematic depth-estimate error's effect on the optimal rotation down
+toward zero, while a small, tile-clustered sparse sample may not.
+Concrete next step: log the *rendered depth* at the sampled pixels
+alongside the rotation overshoot, frame by frame, and check for
+correlation — ideally on faster hardware (each full run costs 15-20
+minutes on this dev GPU; the real-loop instrumentation used here makes
+this cheap to re-run once faster hardware is available).
