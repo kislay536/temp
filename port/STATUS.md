@@ -981,7 +981,7 @@ and sparse configs with it and compared frames 80-250 directly:
 | Metric | Dense | Sparse |
 |---|---|---|
 | Translation error (m) | climbs to ~1.0-1.06 by frame 200-250 | climbs to ~1.0-1.1 by frame 200-250 — **essentially identical to dense** |
-| Rotation error (deg) | **bounded, 0.6-4° across the entire range** — corrected every frame, no drift | **grows monotonically, 11.6° (frame 100) → 60°+ (frame 250)** |
+| Rotation error (deg) | **bounded, 0.6-4° across the entire range** — corrected every frame, no drift | **grows sharply through frame ~250** (11.6° at frame 100 → ~60° at frame 250) — see below for what happens after frame 250 |
 
 This is a much sharper and more useful signal than the raw translation
 number, which is dominated by an unrelated artifact: monocular SLAM poses
@@ -1000,6 +1000,38 @@ This also explains why both previously-tested fixes failed: neither
 per-iteration mask resampling nor the loss-normalization fix targets
 anything rotation-specific — both apply identically to the `cam_rot_delta`
 and `cam_trans_delta` gradient paths, and translation was never the problem.
+
+### Correction: rotation error peaks and partially recovers — it's not monotonic
+
+The original sparse debug-ATE log (`sparse_debug_ate2.log`) kept writing
+past the point I'd sampled it to (the background process wasn't killed
+until after the monitor's condition fired at frame ~250) — it actually
+has data through frame 332. The fuller picture changes the shape of the
+finding:
+
+| Frame | 36 | 100 | 150 | 200 | 240 | 260 | 290 | 310 | 330 |
+|---|---|---|---|---|---|---|---|---|---|
+| Rotation error (deg) | 0.5 | 11.6 | 22.9 | 46.2 | 61.2 | 57.6 | 62.7 | 55.7 | 43.1 |
+
+Rotation error **rises sharply, peaks around frame 240-290 (~58-63°), then
+partially recovers to ~43° by frame 330** — it is not an ever-growing,
+irreversible drift. This means my initial "large motion at frame 150-180"
+theory (retracted above) wasn't entirely wrong in spirit — there does
+appear to be a genuinely difficult stretch of the trajectory where sparse
+tracking's rotation estimate gets pulled far off course — but sparse
+*does* claw back some of that error afterward, it just never fully
+recovers the way dense does (dense stays under 4° the whole time; sparse's
+"recovered" 43° is still an order of magnitude worse than dense ever gets).
+
+This also resolves an apparent puzzle: the periodic (Umeyama-aligned,
+whole-trajectory) ATE checkpoints kept climbing through the end of the
+sequence (final RMSE ~0.72-0.73m) even though per-frame *instantaneous*
+rotation error was declining after frame ~290. That's expected — RMSE-
+over-the-whole-trajectory-so-far is a cumulative summary that keeps
+"remembering" the bad excursion period long after any per-frame recovery,
+so a partial late recovery barely moves the final aggregate number. The
+two views aren't contradictory, they're answering different questions
+(instantaneous pose error vs. summary error over the full trajectory).
 
 ### Recommended next steps
 
