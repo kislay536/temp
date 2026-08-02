@@ -1026,3 +1026,25 @@ and `cam_trans_delta` gradient paths, and translation was never the problem.
   and having per-frame rotation-error logging from the start will make any
   future investigation much faster than reconstructing it from periodic
   ATE checkpoints again.
+
+### Attempted (inconclusive): more tracking pixels via `tracking_tile_size`
+
+Tried the cheapest possible test of "does more supervision reduce rotation
+drift": set `Training.tracking_tile_size: 8` (4x more tracking pixels,
+4800 instead of 1200) via config only, no code change. **This is invalid**
+— confirmed by a crash within 5 frames (`CUDA error: invalid configuration
+argument`). `mask_utils.py`'s own docstring already said `tile_size` "must
+match `BLOCK_X` of the rasterizer that will consume the output"; `track-
+rasterization`'s `BLOCK_X` is a compile-time 16, so 8 is not a valid
+density-only knob — there is a real, currently-undocumented-in-code
+architectural coupling here, not just a convention. Note the crash's
+*stack trace* pointed at the backend's `extend_from_pcd_seq` /
+`densification_postfix` (unrelated-looking code) rather than the tracking
+path — consistent with CUDA's asynchronous error reporting surfacing a
+frontend illegal-launch on a later, unrelated call, but this means the
+experiment doesn't cleanly confirm *why* it failed, only that `tile_size !=
+16` for tracking is unsafe as-is. Reverted (config file deleted, no
+committed changes). Testing the pixel-count hypothesis properly would need
+a genuinely different pixel-selection function (K pixels per 16x16 tile,
+keeping `tile_size=16` for `BLOCK_X` compatibility) rather than a smaller
+tile size — not attempted yet.
