@@ -1075,12 +1075,55 @@ enough sparse pixels" in any simple sense (quantity, resampling frequency,
 or normalization). It's more likely something structural — e.g., in how
 the `theta` (`cam_rot_delta`) gradient is actually computed through the
 sparse kernel's backward pass, or a genuine spatial-conditioning issue
-that survives naive resampling (e.g., if the tile-grid sampling still
-systematically under-represents the image periphery, where rotation's
-apparent-motion signal is strongest, in a way that more *uniform* random
-resampling doesn't fix). This now needs kernel-level (not Python-loss-
-level) investigation — comparing dense's and sparse's `theta` gradient
-values directly on a matched small test case, the way Checkpoint C did
-for the forward/backward math generally but not specifically isolating
-rotation vs translation contributions. Not attempted yet — a reasonable
-next session's starting point, ideally on faster hardware.
+that survives naive resampling.
+
+### Attempted (inconclusive, too noisy): direct gradient-bias test
+
+Tried a cheap (seconds, not minutes) kernel-level test: build a small
+synthetic scene (40 Gaussians, 128x128), compute `dL/dtheta` and `dL/drho`
+two ways — (1) `G_full`, using every pixel, and (2) `G_est`, a Monte-Carlo
+estimator using a random ~1/16 pixel subset per draw (rescaled by 16x to
+be an unbiased estimator of the full-image sum-gradient if the renderer's
+per-pixel gradients are themselves correct), averaged over 40 independent
+draws. If `mean(G_est) ≈ G_full`, the sparse renderer's gradient is
+unbiased (real tracking's issue would then be pure variance/conditioning,
+not a bug). If there's a persistent gap, that's a real bias.
+
+**Result: inconclusive, not negative.** The L1 loss's gradient is
+`sign(color - gt)`, a discontinuous function of the residual — combined
+with only 40 draws and a scene where many pixels are pure background
+(zero gradient) or dominated by a single Gaussian (large sign flips
+between draws), the Monte Carlo variance was enormous: standard error
+(`std/sqrt(40)`) was ~200x larger than the true gradient value for both
+`theta` and `rho`. That swamps any possible bias signal — this test
+cannot currently distinguish "unbiased but noisy" from "biased," it only
+shows both are far noisier than 40 draws can resolve. Script saved at
+`/tmp/.../scratchpad/test_theta_bias.py` (session-local, not in the repo)
+for reference; a real version of this test would need an L2 (smooth)
+loss, many more draws (100s), and a scene engineered so most pixels have
+consistent multi-Gaussian coverage — not attempted tonight given time
+already spent.
+
+### Summary of tonight's investigation (Milestone 5, V3-V5)
+
+Four hypotheses tested for the sparse-tracking rotation-drift regression;
+all falsified or inconclusive, none identified a fix:
+
+1. Frozen per-frame random mask (resample every iteration instead) —
+   **falsified**, no change.
+2. Loss normalization scale mismatch (match dense's convention) —
+   **falsified**, no meaningful change.
+3. Insufficient pixel count (4x more pixels via `generate_random_mask_k`)
+   — **falsified**, no improvement (if anything, slightly worse).
+4. Direct gradient-bias test — **inconclusive**, test itself too noisy to
+   answer the question as designed.
+
+What's solid: the regression is real, reproducible across 5+ independent
+runs, not GPU/VRAM-caused, not introduced by this session's CUDA work
+(pre-existed in stub-era runs), and specifically affects rotation
+estimation while translation tracks comparably to dense. What's still
+unknown: the actual mechanism. Recommended entry point for whoever
+continues this: a properly-designed gradient-bias test (per the attempt
+above, done right) or direct comparison of `theta`'s backward-pass CUDA
+code between the two packages and the original dense kernel, ideally on
+faster hardware where each iteration costs seconds instead of minutes.
