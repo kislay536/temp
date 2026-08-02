@@ -217,7 +217,7 @@ class BackEnd(mp.Process):
                         viewpoint, self.gaussians, self.pipeline_params, self.background,
                         pixel_range=pixel_range,
                         pixel_coords=pixel_coords,
-                        use_map_rasterizer=True,  # ignored until CU9.1
+                        use_map_rasterizer=True,
                     )
                     (image, depth, opacity, n_touched) = (
                         render_pkg["render"],
@@ -272,7 +272,7 @@ class BackEnd(mp.Process):
                         viewpoint, self.gaussians, self.pipeline_params, self.background,
                         pixel_range=pixel_range,
                         pixel_coords=pixel_coords,
-                        use_map_rasterizer=True,  # ignored until CU9.1
+                        use_map_rasterizer=True,
                     )
                     (image, depth, opacity) = (
                         render_pkg["render"],
