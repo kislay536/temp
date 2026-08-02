@@ -957,19 +957,65 @@ against inconsistent camera poses), which would degrade rendered PSNR as a
 *symptom* of tracking drift rather than mapping being an independent second
 bug. Not yet tested empirically.
 
-### Recommended next steps (unstarted)
+### Update: found the trigger — a large-motion segment sparse tracking can't recover from
 
-- Instrument (temporarily) per-frame pose delta magnitude and tracking loss
-  value for the first ~50 frames of a sparse run, compare against dense, to
-  see whether divergence is gradual (consistent with noisy-gradient-driven
-  drift) or has a sharp onset (consistent with a discrete bug at a specific
-  frame/event, e.g. a keyframe reset or `median_depth` miscalculation).
-- Check whether `self.median_depth` (`slam_frontend.py:211`), computed from
-  the sparse-only depth/opacity buffer, is a reasonable estimate — if the
-  sample is too small or biased it feeds directly into keyframe-insertion
-  thresholds (`slam_frontend.py:231-232`) and could destabilize keyframe
-  cadence.
+Comparing per-checkpoint ATE across **four independent runs** (this
+session's original CU9.2 run, the resample experiment, the normalization-fix
+experiment, and the pre-CU9 2026-07-30-22-38-45 stub run — different code,
+different random pixel draws, same dataset) shows the same shape every time:
+
+| Run | ~frame 75-130 | ~frame 150-210 | final |
+|---|---|---|---|
+| Dense baseline | 0.007-0.011 | 0.013-0.025 (mild rise, then **stabilizes** ~0.033-0.035 for the rest) | 0.034 |
+| Sparse (all 4 variants) | 0.010-0.039 (comparable order of magnitude to dense) | **0.08-0.17** (3-7x jump) | never recovers — climbs steadily to 0.71-0.73 |
+
+Every sparse run is roughly *competitive* with dense through the first
+~130 frames, then sees a sharp jump in the 150-210 range that dense also
+feels (its own ATE roughly triples in the same window) but dense
+**stabilizes afterward** while sparse **never recovers** and keeps
+climbing for the rest of the sequence (no loop closure/global BA to undo
+accumulated error).
+
+Checked the actual RGB frames at that point
+(`datasets/tum/rgbd_dataset_freiburg1_desk/rgb/1305031457.759556.png` →
+`1305031458.591641.png`, 0.83s apart, dataset frame index ~150-155): the
+camera moves from a close-up top-down view of the desk clutter to a
+pulled-back wide view showing the monitors — a large, fast viewpoint
+change in under a second. That lands exactly in the divergence window.
+
+**Working diagnosis:** this isn't a normalization or resampling bug (both
+were tested and ruled out) — it's a *robustness* gap. Dense tracking's
+~150k-pixel photometric constraint set has enough correspondence
+information to resolve a large inter-frame motion and self-correct. The
+sparse tracker's ~600-pixel budget (1200 tile samples ∩ `grad_mask`,
+per the roadmap's own spec) is fine for small, incremental motion but
+appears to be under-constrained for large jumps — it locks onto a wrong
+pose during the hard segment, and with no loop closure, that error
+persists and compounds for the rest of the run.
+
+If true, this points to a **design-level** fix, not a code bug: something
+that adapts sparse tracking's pixel budget or falls back toward denser
+supervision when inter-frame motion/residual is large (e.g., a
+motion-magnitude-gated pixel count, or gradient-weighted sampling for
+tracking the way `adaptive_random_sampling` is already used for mapping).
+That's a real change to the sparse-tracking algorithm as specified in
+`MILESTONE_PLAN_V3.md`, not a bugfix within the current spec — flagging
+for a decision before implementing.
+
+### Recommended next steps
+
+- Confirm the hard-segment hypothesis directly: log per-frame pose delta
+  magnitude (`update_pose`'s rotation/translation step) for frames
+  ~140-200 in both dense and sparse and check whether sparse's pose
+  estimate visibly diverges from dense's during that exact window (rather
+  than inferring it from ATE alone, which is a summary over the whole
+  trajectory).
+- If confirmed, evaluate a motion-adaptive or larger tracking pixel budget
+  as a design change — this trades some of SPLATONIC's speed advantage for
+  robustness, so it's a decision for the roadmap owner, not an autonomous
+  code fix.
 - Once hardware allows, re-run V3–V5 on the A100 with the full
   `MAX_NUM_RENDERED=16,000,000` restored, purely to remove this dev
-  machine's constraints from the loop — expected to reproduce the same ATE
-  per the analysis above, but worth confirming.
+  machine's constraints from the loop — expected to reproduce the same
+  divergence pattern per the analysis above (it's dataset/algorithm-driven,
+  not GPU-driven), but worth confirming.
