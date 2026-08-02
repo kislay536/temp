@@ -119,10 +119,10 @@ down to exactly one error on each package** — a deliberate, staged one
 | CU6.2 | Switch to static binning buffer in forward | ✅ **Already satisfied** — the "old" pattern CU6.2 describes doesn't exist in this codebase (sizing already happens inside `Rasterizer::forward()` itself, made static back in CU3.2); no change needed |
 | CU6.3 | Add `pixel_coords` to `RasterizeGaussiansBackwardCUDA` + `Rasterizer::backward()` | ✅ Done **with the `rasterizer.h` declaration also extended** (Gap 11, see §5), **uncommitted** — introduces one new, expected, staged build error (`rasterizer_impl.cu`'s `Rasterizer::backward()` definition now mismatches; deferred to CU8, matching Gap 3/5's precedent) |
 | CU6.4 | Update `ext.cpp` pybind registrations | ✅ **Already satisfied** — `ext.cpp` binds bare function pointers with no named-argument list, so it auto-adapts to the updated C++ signatures; no change needed |
-| CU7.1 | `pixel_range`/`pixel_coords` on `_RasterizeGaussians.forward()`, empty-tensor fallback (`diff_gaussian_rasterization/__init__.py`) | ✅ Done, **uncommitted** |
-| CU7.2 | Save `pixel_coords` in `ctx`, `ctx.num_pixels` | ✅ Done, **uncommitted** |
-| CU7.3 | `None` returns for pixel args in `backward()` | ✅ Done, **uncommitted** |
-| CU7.4 | `pixel_range`/`pixel_coords` on `GaussianRasterizer.forward()` + free-function `rasterize_gaussians()` | ✅ Done, **uncommitted** — confirmed backward-compatible with the existing all-keyword call site in `gaussian_renderer/__init__.py` |
+| CU7.1 | `pixel_range`/`pixel_coords` on `_RasterizeGaussians.forward()`, empty-tensor fallback (`diff_gaussian_rasterization/__init__.py`) | ✅ Done, committed `6cd524f` |
+| CU7.2 | Save `pixel_coords` in `ctx`, `ctx.num_pixels` | ✅ Done, committed `6cd524f` |
+| CU7.3 | `None` returns for pixel args in `backward()` | ✅ Done, committed `6cd524f` |
+| CU7.4 | `pixel_range`/`pixel_coords` on `GaussianRasterizer.forward()` + free-function `rasterize_gaussians()` | ✅ Done, committed `6cd524f` — confirmed backward-compatible with the existing all-keyword call site in `gaussian_renderer/__init__.py` |
 | CU7.5 | End-to-end Python forward+backward test | ⬜ Blocked — needs the extension to actually `pip install` successfully, which needs Gap 11/CU8 closed first (same deferral as CU5.8) |
 | CU8.1–CU9.2 | Sparse backward kernel, activation | Not started |
 
