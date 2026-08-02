@@ -1082,6 +1082,28 @@ rotation down close to zero, while a small, spatially clustered-by-tile
 sparse sample might not — but this specific depth-mediated explanation
 is a hypothesis, not yet verified.
 
+**Finding 3 — the depth-mediated hypothesis above is also falsified.**
+Extended `SPLATONIC_DEBUG_ATE` further to log mean absolute rendered-vs-
+ground-truth depth error at the sampled sparse pixels each frame, and
+correlated it against the overshoot ratio over 321 real frames:
+
+- Correlation(depth error, overshoot ratio) = **-0.33** — weakly
+  *negative*, not the positive correlation the hypothesis predicted.
+- Depth error is roughly flat across the sequence (mean 0.669 for frames
+  40-150, mean 0.617 for frames 150-350) while the overshoot ratio nearly
+  doubles over the same split (1.38 → 2.47). Depth error simply isn't
+  tracking the escalation.
+- (Incidentally: depth error correlates positively with the *true*
+  motion magnitude, r=0.50 — larger real camera motions reveal more
+  unmodeled geometry, which is expected and unrelated to the rotation
+  bug.)
+
+So it is not (at least not simply) depth-estimate error feeding into a
+depth-dependent rotation gradient. **After eight tested angles, the
+precise symptom (Findings 1-2 above) is nailed down, but the underlying
+cause of *why* the sparse loss's rotation minimum is displaced remains
+open.**
+
 ### Recommended next steps (superseded — see "Summary of tonight's investigation" at the end of this section for the current, up-to-date recommendation)
 
 - Investigate the `cam_rot_delta` (`theta`) gradient path specifically,
@@ -1215,9 +1237,9 @@ Scripts saved at `/tmp/.../scratchpad/test_theta_bias.py` and `_v2.py`
 
 ### Summary of tonight's investigation (Milestone 5, V3-V5)
 
-Seven angles tried on the sparse-tracking rotation-drift regression. Five
-falsified/inconclusive attempts at a quick fix, then two that nailed down
-the actual mechanism:
+Eight angles tried on the sparse-tracking rotation-drift regression. Five
+falsified/inconclusive attempts at a quick fix, two that nailed down the
+precise symptom, and one that ruled out the leading cause hypothesis:
 
 1. Frozen per-frame random mask (resample every iteration instead) —
    **falsified**, no change.
@@ -1244,6 +1266,13 @@ the actual mechanism:
    iterations) show ~1.98x — **essentially identical**. This rules out
    "runs too long without a stopping signal" and shows the optimizer
    reaches a genuine stable fixed point that is simply the wrong one.
+8. **Real-loop instrumentation, depth-error correlation**: logged mean
+   rendered-vs-ground-truth depth error at the sampled pixels each frame
+   and correlated against the overshoot ratio over 321 frames —
+   **falsified**, correlation is weakly *negative* (-0.33), and depth
+   error stays flat across the sequence while the overshoot ratio nearly
+   doubles. Rules out the leading "depth-estimate error feeds a
+   depth-dependent rotation gradient" hypothesis.
 
 **Bottom line:** the sparse photometric loss's rotation minimum, for
 whatever pixels happen to get sampled each frame, is itself systematically
@@ -1257,14 +1286,32 @@ resampling/loss scale/pixel count/single-frame gradient noise, and not a
 premature-stopping artifact.
 
 **What's still open:** *why* the sparse loss's rotation minimum is
-displaced. Leading (untested) hypothesis: rotation's photometric gradient
-is depth-dependent in a way translation's isn't as directly, and this
-monocular setup has no ground-truth depth (depth comes from the Gaussian
-model's own rendered/median depth) — a full-image loss may average any
-systematic depth-estimate error's effect on the optimal rotation down
-toward zero, while a small, tile-clustered sparse sample may not.
-Concrete next step: log the *rendered depth* at the sampled pixels
-alongside the rotation overshoot, frame by frame, and check for
-correlation — ideally on faster hardware (each full run costs 15-20
-minutes on this dev GPU; the real-loop instrumentation used here makes
-this cheap to re-run once faster hardware is available).
+displaced — the depth-mediated explanation didn't pan out, so the actual
+cause remains unknown after eight tested angles. Untested candidates for
+whoever continues this:
+- **Spatial distribution of the sample**, not its depth: `generate_random_
+  mask` places exactly one (or k) pixel per 16x16 tile — decent *coverage*
+  but each tile's *exact* pixel is uniform-random within it. Check whether
+  the overshoot correlates with how much the actual sampled points that
+  frame happen to cluster near the image center (low rotation signal) vs.
+  periphery (high rotation signal), rather than with depth.
+- **The `opacity` weighting term** in `get_loss_tracking_sparse` — dense
+  and sparse both weight residuals by rendered opacity, but sparse's
+  opacity estimate at only ~600-4800 points, from a possibly-immature or
+  differently-converged Gaussian model, could carry its own bias distinct
+  from depth.
+- **Exposure compensation** (`viewpoint.exposure_a/b`, optimized jointly
+  with pose every frame) — check whether it converges to different values
+  under sparse vs. dense supervision in a way that distorts the effective
+  photometric residual driving the rotation gradient.
+- A cleaner **isolation experiment**: freeze `exposure_a/b` and `cam_trans_
+  delta` (zero learning rate) and optimize *only* `cam_rot_delta` against
+  the sparse loss for a single hard-segment frame, then compare the
+  resulting minimum to the dense-loss minimum for the identical frame —
+  this removes cross-parameter coupling as a confound entirely.
+
+Ideally done on faster hardware (each full run costs 15-20 minutes on this
+dev GPU); the real-loop instrumentation built tonight
+(`SPLATONIC_DEBUG_ATE`, now logging true/estimated rotation, iteration
+count, convergence status, and depth error) makes each of these cheap to
+add and re-run once faster hardware is available.

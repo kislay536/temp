@@ -245,10 +245,18 @@ class FrontEnd(mp.Process):
                     torch.arccos(torch.clamp((torch.trace(R_rel_est) - 1) / 2, -1, 1))
                 ).cpu()
             )
+            depth_err_str = "nan"
+            if pixel_mask is not None:
+                gt_depth_np = viewpoint.depth
+                gt_depth = torch.from_numpy(gt_depth_np).to(device=depth.device, dtype=depth.dtype)
+                valid = pixel_mask & (gt_depth > 0.01)
+                if valid.any():
+                    depth_err = torch.abs(depth[0][valid] - gt_depth[valid]).mean()
+                    depth_err_str = f"{float(depth_err.cpu()):.4f}"
             print(
                 f"DBG_ATE frame={cur_frame_idx} t_err={t_err_norm:.4f} ang_err_deg={ang_err_deg:.3f} "
                 f"true_step_deg={true_step_deg:.3f} est_step_deg={est_step_deg:.3f} "
-                f"n_iters={tracking_itr + 1} converged={converged}",
+                f"n_iters={tracking_itr + 1} converged={converged} depth_err={depth_err_str}",
                 flush=True,
             )
         return render_pkg
