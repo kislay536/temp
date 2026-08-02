@@ -30,6 +30,8 @@ def rasterize_gaussians(
     theta,
     rho,
     raster_settings,
+    pixel_range=None,
+    pixel_coords=None,
 ):
     return _RasterizeGaussians.apply(
         means3D,
@@ -43,6 +45,8 @@ def rasterize_gaussians(
         theta,
         rho,
         raster_settings,
+        pixel_range,
+        pixel_coords,
     )
 
 class _RasterizeGaussians(torch.autograd.Function):
@@ -60,7 +64,15 @@ class _RasterizeGaussians(torch.autograd.Function):
         theta,
         rho,
         raster_settings,
+        pixel_range=None,
+        pixel_coords=None,
     ):
+        # SPLATONIC: empty-tensor fallback avoids a None.data_ptr() crash at the
+        # C++ boundary when the sparse path isn't active yet (dense-only callers).
+        if pixel_range is None:
+            pixel_range = torch.zeros(0, dtype=torch.int32, device=means3D.device)
+        if pixel_coords is None:
+            pixel_coords = torch.zeros(0, dtype=torch.int32, device=means3D.device)
 
         # Restructure arguments the way that the C++ lib expects them
         args = (
@@ -77,6 +89,8 @@ class _RasterizeGaussians(torch.autograd.Function):
             raster_settings.projmatrix_raw,
             raster_settings.tanfovx,
             raster_settings.tanfovy,
+            pixel_range,
+            pixel_coords,
             raster_settings.image_height,
             raster_settings.image_width,
             sh,
@@ -101,7 +115,8 @@ class _RasterizeGaussians(torch.autograd.Function):
         # Keep relevant tensors for backward
         ctx.raster_settings = raster_settings
         ctx.num_rendered = num_rendered
-        ctx.save_for_backward(colors_precomp, means3D, scales, rotations, cov3Ds_precomp, radii, sh, geomBuffer, binningBuffer, imgBuffer)
+        ctx.num_pixels = pixel_coords.shape[0] // 2
+        ctx.save_for_backward(colors_precomp, means3D, scales, rotations, cov3Ds_precomp, radii, sh, geomBuffer, binningBuffer, imgBuffer, pixel_coords)
         return color, radii, depth, opacity, n_touched
 
     @staticmethod
@@ -110,7 +125,7 @@ class _RasterizeGaussians(torch.autograd.Function):
         # Restore necessary values from context
         num_rendered = ctx.num_rendered
         raster_settings = ctx.raster_settings
-        colors_precomp, means3D, scales, rotations, cov3Ds_precomp, radii, sh, geomBuffer, binningBuffer, imgBuffer = ctx.saved_tensors
+        colors_precomp, means3D, scales, rotations, cov3Ds_precomp, radii, sh, geomBuffer, binningBuffer, imgBuffer, pixel_coords = ctx.saved_tensors
 
         # Restructure args as C++ method expects them
         args = (raster_settings.bg,
@@ -126,6 +141,7 @@ class _RasterizeGaussians(torch.autograd.Function):
                 raster_settings.projmatrix_raw,
                 raster_settings.tanfovx,
                 raster_settings.tanfovy,
+                pixel_coords,
                 grad_out_color,
                 grad_out_depth,
                 sh,
@@ -165,7 +181,9 @@ class _RasterizeGaussians(torch.autograd.Function):
             grad_cov3Ds_precomp,
             grad_theta,
             grad_rho,
-            None,
+            None,   # raster_settings -- no gradient
+            None,   # pixel_range -- no gradient
+            None,   # pixel_coords -- no gradient
         )
 
         return grads
@@ -201,8 +219,8 @@ class GaussianRasterizer(nn.Module):
             
         return visible
 
-    def forward(self, means3D, means2D, opacities, shs = None, colors_precomp = None, scales = None, rotations = None, cov3D_precomp = None, theta=None, rho=None):
-        
+    def forward(self, means3D, means2D, opacities, shs = None, colors_precomp = None, scales = None, rotations = None, cov3D_precomp = None, theta=None, rho=None, pixel_range=None, pixel_coords=None):
+
         raster_settings = self.raster_settings
 
         if (shs is None and colors_precomp is None) or (shs is not None and colors_precomp is not None):
@@ -235,11 +253,13 @@ class GaussianRasterizer(nn.Module):
             shs,
             colors_precomp,
             opacities,
-            scales, 
+            scales,
             rotations,
             cov3D_precomp,
             theta,
             rho,
-            raster_settings, 
+            raster_settings,
+            pixel_range,
+            pixel_coords,
         )
 
