@@ -47,6 +47,8 @@ RasterizeGaussiansCUDA(
     const torch::Tensor& projmatrix_raw,
     const float tan_fovx,
 	const float tan_fovy,
+	const torch::Tensor& pixel_range,
+	const torch::Tensor& pixel_coords,
     const int image_height,
     const int image_width,
 	const torch::Tensor& sh,
@@ -90,6 +92,11 @@ RasterizeGaussiansCUDA(
 		M = sh.size(1);
       }
 
+	  // SPLATONIC: int2 stored as flat int* through the torch/C++ boundary;
+	  // reinterpret_cast to int2* happens inside preprocessCUDA's call site.
+	  const int* d_pixel_range  = pixel_range.contiguous().data_ptr<int>();
+	  const int* d_pixel_coords = pixel_coords.contiguous().data_ptr<int>();
+
 	  rendered = CudaRasterizer::Rasterizer::forward(
 	    geomFunc,
 		binningFunc,
@@ -110,6 +117,8 @@ RasterizeGaussiansCUDA(
 		campos.contiguous().data<float>(),
 		tan_fovx,
 		tan_fovy,
+		d_pixel_range,
+		d_pixel_coords,
 		prefiltered,
 		out_color.contiguous().data<float>(),
 		out_depth.contiguous().data<float>(),
@@ -136,6 +145,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
     const torch::Tensor& projmatrix_raw,
     const float tan_fovx,
 	const float tan_fovy,
+	const torch::Tensor& pixel_coords,
     const torch::Tensor& dL_dout_color,
 	const torch::Tensor& dL_dout_depths,
 	const torch::Tensor& sh,
@@ -187,6 +197,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	  campos.contiguous().data<float>(),
 	  tan_fovx,
 	  tan_fovy,
+	  pixel_coords.contiguous().data_ptr<int>(),
 	  radii.contiguous().data<int>(),
 	  reinterpret_cast<char*>(geomBuffer.contiguous().data_ptr()),
 	  reinterpret_cast<char*>(binningBuffer.contiguous().data_ptr()),

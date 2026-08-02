@@ -1,6 +1,6 @@
 # SPLATONIC-on-MonoGS Port — Status
 
-Last updated: 2026-08-02 (CU4.1–CU4.5 and CU5.1–CU5.6 implemented and verified end-to-end; Milestone 4b closed, Milestone 4c in progress)
+Last updated: 2026-08-02 (CU4.1–CU4.5, CU5.1–CU5.6, and CU6.1/CU6.3 done; full `pip install` down to 1 expected error; Milestone 4b closed, Milestone 4c in progress)
 
 Roadmap: `port/MILESTONE_PLAN_V3.md`. This document is a snapshot of what has
 been done, what changed where, and what is still open. It is not itself a
@@ -71,10 +71,18 @@ source too (Gap 10) during a from-scratch end-to-end verification
 brute-force CPU reference. After fixes: exact match (tol 1e-3) across 256
 pixels on both tilings, including a 600-Gaussian-deep stress scene forcing
 3 rounds (track) / 38 rounds (map) per pixel to exercise cross-round
-carry-over; `compute-sanitizer` memcheck + racecheck both clean. Full
-`pip install` error count is down to the same 5 `rasterize_points.cu`
-errors (CU6.1 territory) on both packages — `rasterizer_impl.cu` and
-`forward.cu` now compile clean on their own.
+carry-over; `compute-sanitizer` memcheck + racecheck both clean.
+
+**Also done — CU6.1 and CU6.3**: `pixel_range`/`pixel_coords` threaded
+through `rasterize_points.cu`'s forward and backward entry points. This
+fixed all 5 remaining `rasterize_points.cu` build errors outright.
+CU6.2 and CU6.4 needed no code changes — both describe patterns that
+don't exist in this codebase's actual `rasterize_points.cu`/`ext.cpp` (see
+§2). Found one more instance of the Gap 3/5 pattern (Gap 11:
+`Rasterizer::backward()`'s own declaration was never extended anywhere in
+the roadmap) and resolved it the same way. **Full `pip install` is now
+down to exactly one error on each package** — a deliberate, staged one
+(Gap 11, deferred to CU8) — down from 9 at the start of this session.
 
 ---
 
@@ -107,7 +115,11 @@ errors (CU6.1 territory) on both packages — `rasterizer_impl.cu` and
 | CU5.3–CU5.6 | Warp prefix-scan transmittance, color/depth accumulation, `n_touched`, cooperative early exit (`forward.cu`) | ✅ Done **against SPLATONIC's real algorithm, not the roadmap's flawed pseudocode** — see §5 Gaps 9–10, §6d/§6e |
 | CU5.7 | Compile + brute-force correctness test | ✅ Satisfied by Checkpoint B (§6e) — 0 mismatches, sanitizers clean, both tilings |
 | CU5.8 | Regression test on dense MonoGS (real SLAM tracking loop) | ⬜ Not started — needs a live `slam.py` run, deferred (see §7) |
-| CU6.1–CU9.2 | Python bindings, autograd wiring, sparse backward kernel, activation | Not started |
+| CU6.1 | Add `pixel_range`/`pixel_coords` to `RasterizeGaussiansCUDA` (`rasterize_points.cu`/`.h`) | ✅ Done, **uncommitted** — this fixed all 5 pre-existing `rasterize_points.cu` errors |
+| CU6.2 | Switch to static binning buffer in forward | ✅ **Already satisfied** — the "old" pattern CU6.2 describes doesn't exist in this codebase (sizing already happens inside `Rasterizer::forward()` itself, made static back in CU3.2); no change needed |
+| CU6.3 | Add `pixel_coords` to `RasterizeGaussiansBackwardCUDA` + `Rasterizer::backward()` | ✅ Done **with the `rasterizer.h` declaration also extended** (Gap 11, see §5), **uncommitted** — introduces one new, expected, staged build error (`rasterizer_impl.cu`'s `Rasterizer::backward()` definition now mismatches; deferred to CU8, matching Gap 3/5's precedent) |
+| CU6.4 | Update `ext.cpp` pybind registrations | ✅ **Already satisfied** — `ext.cpp` binds bare function pointers with no named-argument list, so it auto-adapts to the updated C++ signatures; no change needed |
+| CU7.1–CU9.2 | Autograd wiring, sparse backward kernel, activation | Not started |
 
 ---
 
@@ -144,11 +156,14 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 - `rasterizer_impl.cu` — **(CU4.1–CU4.5, committed `cec8904`)**: `InclusiveSum`/`duplicateWithKeys` calls removed; `GeometryState::fromChunk()`'s dead `scanning_space`/`point_offsets` allocations removed (kept `tiles_touched`'s own allocation, Gap 6); `num_rendered` now read via `cudaMemcpy` from `num_rendered_dev` instead of the old prefix-sum readout; render launch switched from `tile_grid`/`dim3(BLOCK_X,BLOCK_Y,1)` to `dim3(num_pixels,1,1)`/`dim3(BLOCK_SIZE,1,1)`, passing `pixel_coords`/`num_pixels` through; `imgState.ranges` zeroing resized to `num_pixels` (Gap 7) and the radix-sort bit-width switched to `getHigherMsb(num_pixels)` (Gap 8)
 - `forward.cu` — **(CU5.1–CU5.6, committed `e18bf3b`)**: `renderCUDA` kernel rewritten for one-block-per-sampled-pixel dispatch with a cross-warp-serialized transmittance scan (ported from the real SPLATONIC source, not the roadmap's pseudocode — Gap 9), `WARP_SIZE_EFF`/`__activemask()`-based shuffle masks (sub-warp-safe for map's `BLOCK_SIZE=16`), `n_touched` atomicAdd, cooperative early exit, block-wide color/depth reduction; `FORWARD::render` wrapper updated to accept and forward `pixel_coords`/`num_pixels` (closes Gap 5)
 - `auxiliary.h` — **(committed `e18bf3b`)**: `NUM_WARPS` changed from floor to ceiling division (`(BLOCK_SIZE+31)/32`) — floor division gives 0 for map's `BLOCK_SIZE=16`, sizing `renderCUDA`'s shared arrays as zero-length
+- `rasterize_points.h`/`.cu` — **(CU6.1/CU6.3, new this update, uncommitted)**: `RasterizeGaussiansCUDA` gains `pixel_range`/`pixel_coords` tensor params (extracted to raw `int*` and threaded into the `Rasterizer::forward()` call between `tan_fovy` and `prefiltered`, matching `rasterizer.h`'s declared order); `RasterizeGaussiansBackwardCUDA` gains `pixel_coords`, threaded into `Rasterizer::backward()`. CU6.2 and CU6.4 needed no changes (see milestone table §2)
+- `cuda_rasterizer/rasterizer.h` — **(Gap 11, new this update, uncommitted)**: `Rasterizer::backward()` declaration gains `const int* pixel_coords` after `tan_fovx, tan_fovy`
 
 ### Not yet touched
 - `rasterizer_impl.h` (both rasterizers) — `GeometryState`/`BinningState` structs unchanged
 - `backward.cu`, `backward.h` — untouched, CU8 territory
-- `rasterize_points.cu`, `ext.cpp` — untouched, CU6 territory
+- `ext.cpp` — no change needed (see CU6.4 in §2)
+- `rasterizer_impl.cu`'s `Rasterizer::backward()` **definition** — deliberately left mismatched against the new declaration (Gap 11, staged break, resolved in CU8)
 - `submodules/diff-gaussian-rasterization/` — the original dense MonoGS rasterizer, verified untouched at every step and must stay that way
 
 ### Roadmap document
@@ -167,6 +182,8 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 **Commits (most recent first):**
 ```
+<pending> feat(cuda-entry): CU6.1+CU6.3 pixel_range/pixel_coords through rasterize_points.cu  [CU6.1, CU6.3, Gap 11]
+2337267 docs: fill in commit hashes in STATUS.md ledger after CU5 commit
 e18bf3b feat(cuda-forward): CU5.1-CU5.6 sparse renderCUDA + Checkpoint B harness  [CU5.1-5.6, port/tests/test_render.cu]
 cec8904 feat(cuda-impl): CU4.1-CU4.5 - switch dispatch from tile-duplication to atomic pixel-key counting  [CU4.1-4.5]
 7ac1fd3 test(cuda-preprocess): validate preprocessCUDA key generation         [CU3.7 - port/tests/ harness]
@@ -192,7 +209,7 @@ history over a message string.
 
 ---
 
-## 5. Roadmap gaps found and resolved (Gaps 1–10)
+## 5. Roadmap gaps found and resolved (Gaps 1–11)
 
 **Gap 1 — buffer ownership contradiction.** CU3.2 originally said
 `gaussian_keys_unsorted`/`gaussian_values_unsorted` belonged to a new
@@ -413,6 +430,26 @@ scheme). Also fixed two real problems this uncovered:
   independent thread scheduling. After both fixes: 0 hazards on both
   tilings, plain and 600-Gaussian-stack stress scenes alike.
 
+**Gap 11 — `Rasterizer::backward()`'s own declaration was never extended
+for `pixel_coords`, the third occurrence of the Gap 3/5 pattern.**
+CU6.3's text says to "pass `pixel_coords.data_ptr<int>()` to
+`Rasterizer::backward(...)`" from `rasterize_points.cu`, but
+`rasterizer.h`'s `Rasterizer::backward()` declaration had no such
+parameter, and no CU (including CU8, whose file scope is `backward.cu`
+only) ever adds one. **Resolved** the same way as Gaps 3 and 5: extended
+`rasterizer.h`'s declaration with `const int* pixel_coords` (positioned
+after `tan_fovx, tan_fovy`, mirroring `forward()`'s own parameter
+placement). Deliberately did **not** update `rasterizer_impl.cu`'s
+`Rasterizer::backward()` *definition* to match — that call site can't
+usefully forward `pixel_coords` to `BACKWARD::render()` until CU8.1 gives
+that kernel a matching parameter to receive it (the same reasoning that
+kept Gap 5's wrapper fix out of CU4.5). This produces one new, fully
+expected, staged build error (`rasterizer_impl.cu`'s definition now
+mismatches the header) — the same "build fails on purpose, staged
+migration" pattern used successfully since CU1.1. Expect a "Gap 12"
+(`BACKWARD::render()`'s own wrapper likely needs the same treatment
+CU5.1 gave `FORWARD::render()`) to surface when CU8 is implemented.
+
 ---
 
 ## 6. Build verification (`pip install -e .`, both rasterizers)
@@ -605,26 +642,43 @@ sub-warp edge cases that produced Gaps 9b and 10.
 
 ---
 
+## 6f. CU6.1–CU6.4 build results
+
+Same process, both packages, after CU6.1/CU6.3 (CU6.2/CU6.4 needed no
+changes). **Error count dropped from 5 to 1** — every `rasterize_points.cu`
+error is gone; `rasterize_points.cu` now compiles clean (deprecation
+warnings only, no errors).
+
+| Error | File:line | Expected? | Why |
+|---|---|---|---|
+| `declaration is incompatible with "void CudaRasterizer::Rasterizer::backward(...)"` | `rasterizer_impl.cu:375` | ✅ Yes — Gap 11 | `rasterizer.h`'s declaration was extended with `pixel_coords`; the `.cu` definition is deliberately left unchanged until CU8 gives `BACKWARD::render()` a matching parameter to receive it (same staged-migration pattern as CU1.1) |
+
+This is the first point in the whole port where a full `pip install`
+failure is down to exactly **one** error, and it's one we introduced on
+purpose. Once CU8 lands, this should be the point where both packages
+install successfully for the first time.
+
+---
+
 ## 7. Immediate next steps
 
-1. **Commit CU5.1–CU5.6** (`forward.cu`'s sparse `renderCUDA` + wrapper
-   fix, `auxiliary.h`'s `NUM_WARPS` fix, `port/tests/test_render.cu` +
-   `run_checkpoint_b.sh`) — implemented and verified this update, not
-   committed yet.
+1. **Commit CU6.1/CU6.3** (`rasterize_points.h`/`.cu` pixel param
+   threading, `rasterizer.h`'s Gap 11 declaration fix) — implemented and
+   verified this update, not committed yet.
 2. **CU5.8** (regression test on dense MonoGS — a real tracking loop
    compared against the dense baseline) genuinely needs a live `slam.py`
    run with a real dataset and the dispatch switch wired up enough to
-   invoke the sparse path, which isn't possible until CU6/CU7/CU9 land.
+   invoke the sparse path, which isn't possible until CU7/CU9 land.
    Deferred; Checkpoint B (§6e) is the strongest available substitute for
    now (exact numerical match against a brute-force reference).
-3. Continue to **CU6.1–CU6.4**: add `pixel_range`/`pixel_coords` to
-   `rasterize_points.cu`'s forward signature (the last thing standing
-   between this port and a fully-`pip install`-able package), switch to
-   the static buffer there too, add `pixel_coords` to the backward
-   signature, update `ext.cpp`'s pybind registrations.
-4. Then **CU7 (autograd wiring)**, **CU8 (sparse backward kernel — apply
-   the same SPLATONIC-cross-reference rigor used for CU5, since backward
-   is at least as algorithmically delicate as forward)**, **CU9
+3. Continue to **CU7.1–CU7.5** (autograd wiring): add pixel args to
+   `_RasterizeGaussians.forward()`/`backward()`, `ctx.save_for_backward`,
+   `GaussianRasterizer.forward()`, end-to-end Python forward+backward test.
+4. Then **CU8 (sparse backward kernel — apply the same SPLATONIC
+   cross-reference rigor used for CU5, since backward is at least as
+   algorithmically delicate as forward; also close Gap 11 by updating
+   `rasterizer_impl.cu`'s `Rasterizer::backward()` definition and likely a
+   "Gap 12" `BACKWARD::render()` wrapper fix mirroring CU5.1's)**, **CU9
    (activate the dispatch switch + smoke test)**, and **Milestone 5
    (validation)**.
 5. (Optional, cosmetic) Fold the Gap 3 clarification into
