@@ -221,6 +221,12 @@ class FrontEnd(mp.Process):
         use_splatonic = self.config["Training"].get("use_splatonic", False)
         tile_size = self.config["Training"].get("tracking_tile_size", 16)
 
+        force_dense_str = os.environ.get("SPLATONIC_DEBUG_FORCE_DENSE_FRAMES")
+        if force_dense_str:
+            force_dense_frames = {int(x) for x in force_dense_str.split(",")}
+            if cur_frame_idx in force_dense_frames:
+                use_splatonic = False
+
         if use_splatonic:
             H, W = viewpoint.image_height, viewpoint.image_width
             debug_k = int(os.environ.get("SPLATONIC_DEBUG_TRACK_K", "1"))
