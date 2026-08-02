@@ -162,10 +162,13 @@ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& ch
 	obtain(chunk, geom.cov3D, P * 6, 128);
 	obtain(chunk, geom.conic_opacity, P, 128);
 	obtain(chunk, geom.rgb, P * 3, 128);
+	// SPLATONIC: geom.tiles_touched's allocation is kept -- preprocessCUDA still
+	// unconditionally writes tiles_touched[idx] = 0 at kernel entry for every idx < P
+	// (nothing removes that init write) -- but nothing reads it anymore now that
+	// InclusiveSum (CU4.1) and duplicateWithKeys (CU4.2) are both gone, so its
+	// prefix-sum sizing call and geom.scanning_space/geom.point_offsets (which existed
+	// solely to support that removed prefix-sum path) are dead and removed here.
 	obtain(chunk, geom.tiles_touched, P, 128);
-	cub::DeviceScan::InclusiveSum(nullptr, geom.scan_size, geom.tiles_touched, geom.tiles_touched, P);
-	obtain(chunk, geom.scanning_space, geom.scan_size, 128);
-	obtain(chunk, geom.point_offsets, P, 128);
 	return geom;
 }
 
@@ -239,6 +242,14 @@ int CudaRasterizer::Rasterizer::forward(
 	dim3 tile_grid((width + BLOCK_X - 1) / BLOCK_X, (height + BLOCK_Y - 1) / BLOCK_Y, 1);
 	dim3 block(BLOCK_X, BLOCK_Y, 1);
 
+	// SPLATONIC: num_pixels is the sentinel entry at the end of the pixel_range
+	// prefix-sum array. Needed both to size imgState.ranges' zeroing below (ranges is
+	// now indexed by sampled-pixel index, not tile index -- identifyTileRanges groups
+	// by whatever is packed in the sorted keys' upper 32 bits, which is the pixel
+	// index k since CU3.6) and for the pixel-based FORWARD::render launch below.
+	int num_pixels = 0;
+	CHECK_CUDA(cudaMemcpy(&num_pixels, pixel_range + tile_grid.x * tile_grid.y, sizeof(int), cudaMemcpyDeviceToHost), debug);
+
 	// Dynamically resize image-based auxiliary buffers during training
 	size_t img_chunk_size = required<ImageState>(width * height);
 	char* img_chunkptr = imageBuffer(img_chunk_size);
@@ -296,28 +307,18 @@ int CudaRasterizer::Rasterizer::forward(
 		prefiltered
 	), debug)
 
-	// Compute prefix sum over full list of touched tile counts by Gaussians
-	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]
-	CHECK_CUDA(cub::DeviceScan::InclusiveSum(geomState.scanning_space, geomState.scan_size, geomState.tiles_touched, geomState.point_offsets, P), debug)
+	// SPLATONIC: total number of (Gaussian, pixel) pairs emitted by preprocessCUDA's
+	// atomic key-emission counter (replaces the old InclusiveSum/duplicateWithKeys
+	// prefix-sum readout, which produced per-tile duplication counts instead).
+	int num_rendered = 0;
+	CHECK_CUDA(cudaMemcpy(&num_rendered, num_rendered_dev, sizeof(int), cudaMemcpyDeviceToHost), debug);
+	if (num_rendered > MAX_NUM_RENDERED)
+		num_rendered = MAX_NUM_RENDERED;   // clamped by overflow guard in kernel
 
-	// Retrieve total number of Gaussian instances to launch and resize aux buffers
-	int num_rendered;
-	CHECK_CUDA(cudaMemcpy(&num_rendered, geomState.point_offsets + P - 1, sizeof(int), cudaMemcpyDeviceToHost), debug);
-
-	// For each instance to be rendered, produce adequate [ tile | depth ] key 
-	// and corresponding dublicated Gaussian indices to be sorted
-	duplicateWithKeys << <(P + 255) / 256, 256 >> > (
-		P,
-		geomState.means2D,
-		geomState.depths,
-		geomState.point_offsets,
-		binningState.point_list_keys_unsorted,
-		binningState.point_list_unsorted,
-		radii,
-		tile_grid)
-	CHECK_CUDA(, debug)
-
-	int bit = getHigherMsb(tile_grid.x * tile_grid.y);
+	// SPLATONIC: keys now pack a pixel index k (range [0, num_pixels)) in the upper
+	// 32 bits, not a tile index -- the sort bit-width must cover num_pixels, or keys
+	// with different k sharing the same low bits would be scrambled together.
+	int bit = getHigherMsb(num_pixels);
 
 	// Sort complete list of (duplicated) Gaussian indices by keys
 	CHECK_CUDA(cub::DeviceRadixSort::SortPairs(
@@ -327,7 +328,10 @@ int CudaRasterizer::Rasterizer::forward(
 		binningState.point_list_unsorted, binningState.point_list,
 		num_rendered, 0, 32 + bit), debug)
 
-	CHECK_CUDA(cudaMemset(imgState.ranges, 0, tile_grid.x * tile_grid.y * sizeof(uint2)), debug);
+	// SPLATONIC: zero num_pixels entries (not tile_grid.x*tile_grid.y) -- ranges is
+	// indexed by sampled-pixel index now; a pixel with zero contributing Gaussians is
+	// never written by identifyTileRanges below and must read back as {0,0}.
+	CHECK_CUDA(cudaMemset(imgState.ranges, 0, num_pixels * sizeof(uint2)), debug);
 
 	// Identify start and end of per-tile workloads in sorted list
 	if (num_rendered > 0)
@@ -337,10 +341,14 @@ int CudaRasterizer::Rasterizer::forward(
 			imgState.ranges);
 	CHECK_CUDA(, debug)
 
-	// Let each tile blend its range of Gaussians independently in parallel
+	// SPLATONIC: one block per sampled pixel, instead of one block per tile.
+	dim3 pixel_grid(num_pixels, 1, 1);
+	dim3 pixel_block(BLOCK_SIZE, 1, 1);
+
+	// Let each pixel blend its range of Gaussians independently in parallel
 	const float* feature_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
 	CHECK_CUDA(FORWARD::render(
-		tile_grid, block,
+		pixel_grid, pixel_block,
 		imgState.ranges,
 		binningState.point_list,
 		width, height,
@@ -352,9 +360,11 @@ int CudaRasterizer::Rasterizer::forward(
 		background,
 		out_color,
 		geomState.depths,
-		out_depth, 
+		out_depth,
 		out_opacity,
-		n_touched
+		n_touched,
+		reinterpret_cast<const int2*>(pixel_coords),
+		num_pixels
     ), debug)
 
 	return num_rendered;

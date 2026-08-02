@@ -72,7 +72,12 @@ continues downstream into CU4 (dispatch) and beyond.
 | CU3.5 | Add alpha pruning (`lowest_alpha_coeff`) (`forward.cu`) | ✅ Done + **roadmap+code bug fixed**, committed `342d88d` — see §5 Gap 4, §6 |
 | CU3.6 | Add key packing + `atomicAdd` slot emission (`forward.cu`) | ✅ Done, committed `342d88d` — verified via Checkpoint A harness |
 | CU3.7 | Compile + unit test `preprocessCUDA`, tag `milestone-4b-cuda-preprocess` | ✅ Done — harness promoted to `port/tests/`, O/R satisfied, C deferred to CU4.5/CU6.1 (see §6b) |
-| CU4.1–CU9.2 | Dispatch, sparse forward/backward kernels, Python bindings, activation | Not started |
+| CU4.1 | Remove `InclusiveSum` call (`rasterizer_impl.cu`) | ✅ Done, committed `<pending>` |
+| CU4.2 | Remove `duplicateWithKeys` call (`rasterizer_impl.cu`) | ✅ Done, committed `<pending>` |
+| CU4.3 | Remove dead `GeometryState` allocations (`rasterizer_impl.cu`) | ✅ Done **with a safety correction** (kept `tiles_touched`'s own allocation) — see §5 Gap 6 |
+| CU4.4 | Read `num_rendered` via `cudaMemcpy` after preprocess (`rasterizer_impl.cu`) | ✅ Done, committed `<pending>` |
+| CU4.5 | Change render grid launch tile→pixel (`rasterizer_impl.cu`) | ✅ Done **with two correctness additions** (ranges-zeroing sizing, sort bit-width) — see §5 Gaps 7–8 |
+| CU5.1–CU9.2 | Sparse forward/backward kernels, Python bindings, activation | In progress — see §5 Gap 5 (CU5.1 must also fix the `FORWARD::render` wrapper) |
 
 ---
 
@@ -129,7 +134,7 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 **Commits (most recent first):**
 ```
-<pending> test(cuda-preprocess): validate preprocessCUDA key generation         [CU3.7 — port/tests/ harness]
+7ac1fd3 test(cuda-preprocess): validate preprocessCUDA key generation         [CU3.7 - port/tests/ harness]
 342d88d milestone 1                                                              [CU3.4+CU3.5(fixed)+CU3.6, roadmap Gap 4, STATUS.md]
 4a96a74 Status
 7fb0741 feat(cuda-preprocess): remove tiles_touched write (replaced by pixel key gen)  [CU3.3]
@@ -152,7 +157,7 @@ history over a message string.
 
 ---
 
-## 5. Roadmap gaps found and resolved (Gaps 1–4)
+## 5. Roadmap gaps found and resolved (Gaps 1–8)
 
 **Gap 1 — buffer ownership contradiction.** CU3.2 originally said
 `gaussian_keys_unsorted`/`gaussian_values_unsorted` belonged to a new
@@ -221,6 +226,79 @@ check CU3.1–CU3.6 before continuing (see §6).**
    `if (power <= -lowest_alpha_coeff) continue;`. No milestone renumbered,
    no ownership changed, no new kernel parameter (`opacities` was already
    in scope).
+
+**Gap 5 — `FORWARD::render()`'s wrapper definition is never updated by any
+CU, mirroring Gap 3 exactly.** `forward.h`'s CU1.3 declaration added
+`const int2* pixel_coords, int num_pixels` to `FORWARD::render(...)`.
+CU5.1 updates the `renderCUDA` **kernel**'s signature to add the same two
+params, but no CU section anywhere touches the *host-side wrapper*
+`void FORWARD::render(...)` in `forward.cu` (the small function that does
+`renderCUDA<NUM_CHANNELS><<<grid,block>>>(...)`) — grepped the entire
+roadmap for `void render(` / `FORWARD::render`: only the header
+declaration (CU1.3) and CU3.1's (unrelated) note about the *preprocess*
+wrapper turn up. This is why `forward.cu`'s own compile error
+(`'FORWARD::render(...)' should have been declared inside 'FORWARD'`) has
+persisted unchanged since CU1.3 landed. **Resolution:** fold the wrapper's
+signature + pass-through update into CU5.1, since that's the step that
+already touches `forward.cu` to add the same two params to `renderCUDA`
+itself — same file, one atomic change, no milestone renumbered. (Doing it
+at CU4.5 was considered and rejected: CU4.5's file scope is
+`rasterizer_impl.cu` only, and the wrapper can't safely forward
+`pixel_coords`/`num_pixels` to `renderCUDA` before CU5.1 gives the kernel
+matching parameters to receive them — attempting it earlier just trades
+one compile error for a different one.)
+
+**Gap 6 — CU4.3 as literally written would deallocate a buffer that is
+still unconditionally written.** CU4.3's text says to remove
+`geomState.tiles_touched`'s allocation as a "dead allocation." But
+`preprocessCUDA` still executes `tiles_touched[idx] = 0;` at kernel entry
+for every `idx < P` (CU3.3 deliberately kept this line — see Gap-adjacent
+note in CU3.3's own text, `:986` — precisely because `InclusiveSum` was
+still consuming it at the time). By CU4.3, `InclusiveSum` is gone (CU4.1)
+so nothing *reads* `tiles_touched` anymore, but the kernel's write is
+still live. Removing the buffer's allocation while the kernel keeps
+writing to it is an out-of-bounds/dangling device write, not merely dead
+code. **Resolved:** kept `obtain(chunk, geom.tiles_touched, P, 128);`;
+removed only what's genuinely dead now — the `InclusiveSum` sizing probe
+(`cub::DeviceScan::InclusiveSum(nullptr, geom.scan_size, ...)`) and the
+`geom.scanning_space`/`geom.point_offsets` allocations that existed solely
+to support it. `geomState.point_offsets` has zero remaining references
+anywhere in the file (confirmed by grep) — that part of CU4.3 was correct
+as written.
+
+**Gap 7 — `imgState.ranges`'s zeroing was sized by tile count, but ranges
+is now indexed by pixel.** `identifyTileRanges` groups contiguous sorted
+keys by whatever value occupies each key's upper 32 bits and writes
+`ranges[that value]` — since CU3.6, that value is the sampled-pixel index
+`k` (range `[0, num_pixels)`), not a tile index. The pre-CU4.5 code zeroed
+only `tile_grid.x * tile_grid.y` entries of `ranges` before calling
+`identifyTileRanges`. Any sampled pixel with **zero** contributing
+Gaussians (very plausible after CU3.5's alpha pruning) is never written by
+`identifyTileRanges` and must read back as `{0,0}` from the zeroed buffer
+— if `num_pixels > tile_grid.x * tile_grid.y` (plausible for `map`'s finer
+tiling with denser sampling), pixels beyond the old zeroed region would
+read uninitialized chunk memory as their `{start,end}` range, corrupting
+`FORWARD::render`'s loop bounds. **Resolved:** the `cudaMemset` now zeroes
+`num_pixels * sizeof(uint2)` instead. The underlying allocation
+(`ImageState::fromChunk(..., width*height)`) was already large enough —
+only the zeroing extent was wrong.
+
+**Gap 8 — the radix-sort bit-width was tile-count-based, but keys pack a
+pixel index.** `int bit = getHigherMsb(tile_grid.x * tile_grid.y);` sizes
+`cub::DeviceRadixSort::SortPairs`'s bit window to cover a tile index. Since
+CU3.6, the keys' upper 32 bits hold the pixel index `k` instead. If
+`num_pixels` needs more bits than `tile_grid.x * tile_grid.y` does (again,
+plausible whenever sampling is denser than the tile grid), the sort window
+would truncate `k`'s high bits, silently scrambling entries whose `k`
+values differ only in the truncated bits. **Resolved:**
+`getHigherMsb(num_pixels)` instead. (This was flagged as a known,
+non-blocking future item during the CU3.2 problem-solving session, before
+CU4/CU5 existed in committed code — CU4.5 is where it actually needed
+fixing.)
+
+All four of Gaps 6–8 (and the deferred Gap 5) live in the same `CU4.5`
+commit/region since they're all direct, load-bearing consequences of the
+same tile→pixel indexing switch that CU4.5 performs.
 
 ---
 
@@ -327,6 +405,27 @@ Net result: CU3.4's traversal and CU3.6's key/slot machinery were correct
 from the first implementation attempt and remain so; CU3.5 needed the
 Gap 4 fix described in §5, and after that fix all ten checks pass on both
 rasterizer tilings.
+
+---
+
+## 6c. CU4.1–CU4.5 build results
+
+Same `pip install -e .` process, both packages, after all of CU4.1–CU4.5
+(including the Gap 6/7/8 corrections). **Error count dropped from 9 to 6**
+— the `rasterizer_impl.cu:342` "too few arguments in function call" error
+is gone (CU4.5's call site now matches `forward.h`'s CU1.3 declaration
+exactly, argument-for-argument). Remaining errors, both expected:
+
+| Error | File:line | Expected? | Why |
+|---|---|---|---|
+| `'FORWARD::render(...)' should have been declared inside 'FORWARD'` | `forward.cu:440` | ✅ Yes — this is Gap 5 | Wrapper definition fix deferred to CU5.1 (see §5) |
+| `argument of type ... incompatible ...` (5 errors) | `rasterize_points.cu:113-119` | ✅ Yes | CU6.1 territory, unchanged |
+
+No error anywhere in `rasterizer_impl.cu` itself — CU4.1–CU4.5's own
+changes compile clean on both rasterizers. Full end-to-end execution
+(actually running `Rasterizer::forward()`) isn't testable yet since
+`forward.cu` still won't link until Gap 5 is closed in CU5.1 — that's the
+very next step.
 
 ---
 
