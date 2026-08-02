@@ -12,10 +12,7 @@
 import math
 
 import torch
-from diff_gaussian_rasterization import (
-    GaussianRasterizationSettings,
-    GaussianRasterizer,
-)
+from diff_gaussian_rasterization import GaussianRasterizationSettings
 
 from gaussian_splatting.scene.gaussian_model import GaussianModel
 from gaussian_splatting.utils.sh_utils import eval_sh
@@ -39,8 +36,13 @@ def render(
 
     Background tensor (bg_color) must be on GPU!
     """
-    # STUB: real sparse dispatch added in CU9.1
-    # Always uses dense rasterizer until then; pixel_range/pixel_coords/use_*_rasterizer are ignored here.
+    # Rasterizer dispatch
+    if use_track_rasterizer and pixel_range is not None:
+        from track_rasterization import GaussianRasterizer
+    elif use_map_rasterizer and pixel_range is not None:
+        from map_rasterization import GaussianRasterizer
+    else:
+        from diff_gaussian_rasterization import GaussianRasterizer
 
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
     if pc.get_xyz.shape[0] == 0:
@@ -78,6 +80,11 @@ def render(
     )
 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+
+    extra_kwargs = {}
+    if pixel_range is not None:
+        extra_kwargs["pixel_range"] = pixel_range
+        extra_kwargs["pixel_coords"] = pixel_coords
 
     means3D = pc.get_xyz
     means2D = screenspace_points
@@ -144,6 +151,7 @@ def render(
             cov3D_precomp=cov3D_precomp,
             theta=viewpoint_camera.cam_rot_delta,
             rho=viewpoint_camera.cam_trans_delta,
+            **extra_kwargs,
         )
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
