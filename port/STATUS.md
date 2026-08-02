@@ -1288,7 +1288,7 @@ diagnostic).
 
 ### Summary of tonight's investigation (Milestone 5, V3-V5)
 
-Eight angles tried on the sparse-tracking rotation-drift regression. Five
+Ten angles tried on the sparse-tracking rotation-drift regression. Five
 falsified/inconclusive attempts at a quick fix, two that nailed down the
 precise symptom, and one that ruled out the leading cause hypothesis:
 
@@ -1351,21 +1351,33 @@ may be much more about **sequential, compounding dynamics across hundreds
 of frames** — including the tracking→mapping→tracking feedback loop —
 than about any single frame's loss landscape at all.
 
-**What's solid regardless:** reproducible across 9+ independent real SLAM
-runs, not GPU/VRAM-caused, pre-existed this session's CUDA work, specific
-to rotation (translation is fine), not a premature-stopping artifact.
+10. **Sample spatial spread correlation**: logged the mean normalized
+    distance-from-image-center of each frame's sampled pixels
+    (`sample_spread` in `SPLATONIC_DEBUG_ATE`'s output) and correlated
+    against the overshoot ratio over 326 frames — **falsified, as
+    expected**. `sample_spread` is essentially constant (mean 0.7652,
+    std 0.0005, range 0.7635-0.7666) across the entire sequence — a
+    direct consequence of averaging ~1200 uniformly-covering random
+    samples each frame (law of large numbers) — so it has essentially
+    zero variance to correlate against anything (r=0.0006). Rules out
+    "sample composition skews toward the image center on hard-segment
+    frames" as an explanation.
 
-**Recommended next steps, in order of how much new engineering they need:**
-1. (Cheapest) Log per-frame rotation overshoot alongside the *spatial
-   spread* of that frame's sampled pixels (e.g., mean distance from image
-   center) — tests whether periphery-vs-center sample composition
-   correlates with overshoot, using only the instrumentation already built.
-2. (Moderate) Fix attempt #9's confound: build a small offline harness
+**What's solid regardless:** reproducible across 10+ independent real
+SLAM runs, not GPU/VRAM-caused, pre-existed this session's CUDA work,
+specific to rotation (translation is fine), not a premature-stopping
+artifact.
+
+**Recommended next steps, in order of how much new engineering they need**
+(the cheap spatial-spread check above is now done and negative):
+1. (Moderate) Fix attempt #9's confound: build a small offline harness
    that loads the **dense run's** saved Gaussian checkpoint as a fixed,
    uncorrupted reference scene, and re-run the same dense-loss-vs-sparse-
    loss rotation-only comparison against that shared, known-good map for
-   several frames.
-3. (Most engineering) Directly test the sequential-dynamics hypothesis: run
+   several frames. This is the most direct remaining way to test whether
+   a single frame's sparse rotation loss landscape is inherently
+   displaced, independent of any accumulated-history confound.
+2. (Most engineering) Directly test the sequential-dynamics hypothesis: run
    the real tracking loop but substitute the *dense* loss for a handful of
    consecutive frames in the middle of a sparse run's hard segment (a
    temporary, throwaway modification) and see whether the trajectory
@@ -1373,9 +1385,9 @@ to rotation (translation is fine), not a premature-stopping artifact.
    contamination from earlier sparse frames has already made recovery
    impossible regardless of which loss subsequent frames use.
 
-All of this is far cheaper to execute on faster hardware (each full run
-costs 15-20 minutes on this dev GPU); the real-loop instrumentation built
+Both are far cheaper to execute on faster hardware (each full run costs
+15-20 minutes on this dev GPU); the real-loop instrumentation built
 tonight (`SPLATONIC_DEBUG_ATE`'s true/estimated rotation, iteration count,
-convergence status, depth error, plus `_debug_isolate_rotation`'s
-cross-parameter isolation) makes all three cheap to extend once faster
-hardware is available.
+convergence status, depth error, sample spread, plus
+`_debug_isolate_rotation`'s cross-parameter isolation) makes both cheap to
+extend once faster hardware is available.

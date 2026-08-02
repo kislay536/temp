@@ -323,6 +323,7 @@ class FrontEnd(mp.Process):
                 ).cpu()
             )
             depth_err_str = "nan"
+            spread_str = "nan"
             if pixel_mask is not None:
                 gt_depth_np = viewpoint.depth
                 gt_depth = torch.from_numpy(gt_depth_np).to(device=depth.device, dtype=depth.dtype)
@@ -330,10 +331,20 @@ class FrontEnd(mp.Process):
                 if valid.any():
                     depth_err = torch.abs(depth[0][valid] - gt_depth[valid]).mean()
                     depth_err_str = f"{float(depth_err.cpu()):.4f}"
+                # mean normalized distance of sampled pixels from image center (0=center, ~1.4=corner)
+                ys, xs = torch.nonzero(pixel_mask, as_tuple=True)
+                if ys.numel() > 0:
+                    H_, W_ = pixel_mask.shape
+                    cy, cx = (H_ - 1) / 2.0, (W_ - 1) / 2.0
+                    ny = (ys.float() - cy) / (H_ / 2.0)
+                    nx = (xs.float() - cx) / (W_ / 2.0)
+                    spread = torch.sqrt(ny**2 + nx**2).mean()
+                    spread_str = f"{float(spread.cpu()):.4f}"
             print(
                 f"DBG_ATE frame={cur_frame_idx} t_err={t_err_norm:.4f} ang_err_deg={ang_err_deg:.3f} "
                 f"true_step_deg={true_step_deg:.3f} est_step_deg={est_step_deg:.3f} "
-                f"n_iters={tracking_itr + 1} converged={converged} depth_err={depth_err_str}",
+                f"n_iters={tracking_itr + 1} converged={converged} depth_err={depth_err_str} "
+                f"sample_spread={spread_str}",
                 flush=True,
             )
             isolate_frames_str = os.environ.get("SPLATONIC_DEBUG_ISOLATE_FRAME")
