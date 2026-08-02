@@ -1,3 +1,4 @@
+import os
 import time
 
 import numpy as np
@@ -209,6 +210,19 @@ class FrontEnd(mp.Process):
                 break
 
         self.median_depth = get_median_depth(depth, opacity)
+        if os.environ.get("SPLATONIC_DEBUG_ATE"):
+            T_gt = viewpoint.T_gt.detach().to(dtype=viewpoint.T.dtype)
+            R_gt = viewpoint.R_gt.detach().to(dtype=viewpoint.R.dtype)
+            t_err_norm = float(
+                torch.linalg.norm(viewpoint.T.detach() - T_gt).cpu()
+            )
+            R_rel = viewpoint.R.detach().T @ R_gt
+            ang_err_deg = float(
+                torch.rad2deg(
+                    torch.arccos(torch.clamp((torch.trace(R_rel) - 1) / 2, -1, 1))
+                ).cpu()
+            )
+            print(f"DBG_ATE frame={cur_frame_idx} t_err={t_err_norm:.4f} ang_err_deg={ang_err_deg:.3f}", flush=True)
         return render_pkg
 
     def is_keyframe(

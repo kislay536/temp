@@ -957,65 +957,72 @@ against inconsistent camera poses), which would degrade rendered PSNR as a
 *symptom* of tracking drift rather than mapping being an independent second
 bug. Not yet tested empirically.
 
-### Update: found the trigger — a large-motion segment sparse tracking can't recover from
+### Superseded: "large-motion trigger" theory (retracted)
 
-Comparing per-checkpoint ATE across **four independent runs** (this
-session's original CU9.2 run, the resample experiment, the normalization-fix
-experiment, and the pre-CU9 2026-07-30-22-38-45 stub run — different code,
-different random pixel draws, same dataset) shows the same shape every time:
+An earlier pass at this section, based only on the periodic (multi-frame,
+Umeyama-aligned) ATE checkpoints, proposed that a large, fast camera motion
+around dataset frame ~150-180 was a discrete trigger sparse tracking
+couldn't recover from. **Retracted** — finer-grained per-frame instrumentation
+(below) shows no discrete jump at that point; the divergence is smooth and
+continuous from much earlier. The apparent "jump" in the periodic
+checkpoints was an artifact of how cumulative trajectory-RMSE summarizes an
+already-continuously-growing per-frame error, not evidence of a specific
+triggering event. Recorded here so the retraction is visible, not just the
+correction.
 
-| Run | ~frame 75-130 | ~frame 150-210 | final |
-|---|---|---|---|
-| Dense baseline | 0.007-0.011 | 0.013-0.025 (mild rise, then **stabilizes** ~0.033-0.035 for the rest) | 0.034 |
-| Sparse (all 4 variants) | 0.010-0.039 (comparable order of magnitude to dense) | **0.08-0.17** (3-7x jump) | never recovers — climbs steadily to 0.71-0.73 |
+### Root cause, narrowed: rotation-specific drift, translation is fine
 
-Every sparse run is roughly *competitive* with dense through the first
-~130 frames, then sees a sharp jump in the 150-210 range that dense also
-feels (its own ATE roughly triples in the same window) but dense
-**stabilizes afterward** while sparse **never recovers** and keeps
-climbing for the rest of the sequence (no loop closure/global BA to undo
-accumulated error).
+Added temporary instrumentation (`SPLATONIC_DEBUG_ATE=1` env var, gated in
+`slam_frontend.py`'s `tracking()`, harmless to leave in) that prints each
+frame's *raw* (unaligned) translation error and rotation-angle error against
+ground truth, immediately after that frame's pose converges. Ran both dense
+and sparse configs with it and compared frames 80-250 directly:
 
-Checked the actual RGB frames at that point
-(`datasets/tum/rgbd_dataset_freiburg1_desk/rgb/1305031457.759556.png` →
-`1305031458.591641.png`, 0.83s apart, dataset frame index ~150-155): the
-camera moves from a close-up top-down view of the desk clutter to a
-pulled-back wide view showing the monitors — a large, fast viewpoint
-change in under a second. That lands exactly in the divergence window.
+| Metric | Dense | Sparse |
+|---|---|---|
+| Translation error (m) | climbs to ~1.0-1.06 by frame 200-250 | climbs to ~1.0-1.1 by frame 200-250 — **essentially identical to dense** |
+| Rotation error (deg) | **bounded, 0.6-4° across the entire range** — corrected every frame, no drift | **grows monotonically, 11.6° (frame 100) → 60°+ (frame 250)** |
 
-**Working diagnosis:** this isn't a normalization or resampling bug (both
-were tested and ruled out) — it's a *robustness* gap. Dense tracking's
-~150k-pixel photometric constraint set has enough correspondence
-information to resolve a large inter-frame motion and self-correct. The
-sparse tracker's ~600-pixel budget (1200 tile samples ∩ `grad_mask`,
-per the roadmap's own spec) is fine for small, incremental motion but
-appears to be under-constrained for large jumps — it locks onto a wrong
-pose during the hard segment, and with no loop closure, that error
-persists and compounds for the rest of the run.
+This is a much sharper and more useful signal than the raw translation
+number, which is dominated by an unrelated artifact: monocular SLAM poses
+are only defined up to a rigid transform from the first frame, so raw
+(non-Umeyama-aligned) translation error grows similarly for both dense and
+sparse simply as the camera moves away from the origin — it says nothing
+about tracking quality by itself. Rotation error has no such gauge-offset
+component (a pure rotation matrix comparison is gauge-free up to the fixed
+initial misalignment, which both curves start from near zero after the
+single early reset at frame 36), so the fact that dense stays bounded while
+sparse grows without limit is a clean, direct measurement: **the sparse
+tracker's camera-rotation estimation is what's actually broken; its
+translation estimation is comparably solid.**
 
-If true, this points to a **design-level** fix, not a code bug: something
-that adapts sparse tracking's pixel budget or falls back toward denser
-supervision when inter-frame motion/residual is large (e.g., a
-motion-magnitude-gated pixel count, or gradient-weighted sampling for
-tracking the way `adaptive_random_sampling` is already used for mapping).
-That's a real change to the sparse-tracking algorithm as specified in
-`MILESTONE_PLAN_V3.md`, not a bugfix within the current spec — flagging
-for a decision before implementing.
+This also explains why both previously-tested fixes failed: neither
+per-iteration mask resampling nor the loss-normalization fix targets
+anything rotation-specific — both apply identically to the `cam_rot_delta`
+and `cam_trans_delta` gradient paths, and translation was never the problem.
 
 ### Recommended next steps
 
-- Confirm the hard-segment hypothesis directly: log per-frame pose delta
-  magnitude (`update_pose`'s rotation/translation step) for frames
-  ~140-200 in both dense and sparse and check whether sparse's pose
-  estimate visibly diverges from dense's during that exact window (rather
-  than inferring it from ATE alone, which is a summary over the whole
-  trajectory).
-- If confirmed, evaluate a motion-adaptive or larger tracking pixel budget
-  as a design change — this trades some of SPLATONIC's speed advantage for
-  robustness, so it's a decision for the roadmap owner, not an autonomous
-  code fix.
-- Once hardware allows, re-run V3–V5 on the A100 with the full
-  `MAX_NUM_RENDERED=16,000,000` restored, purely to remove this dev
-  machine's constraints from the loop — expected to reproduce the same
-  divergence pattern per the analysis above (it's dataset/algorithm-driven,
-  not GPU-driven), but worth confirming.
+- Investigate the `cam_rot_delta` (`theta`) gradient path specifically,
+  as computed from a small, randomly-scattered ~600-pixel subsample versus
+  a full image. Checkpoint C already verified the *formula* is correct
+  (finite-difference match on a dense-covered small test scene), so this
+  is not expected to be a math bug — more likely a conditioning/robustness
+  issue: estimating a 3-DOF rotation from ~600 random points is more
+  sensitive to sample composition (e.g., which parts of the frame happen to
+  get sampled that round) than translation is, and with no bundle
+  adjustment/loop closure, small per-frame biases in that estimate compound
+  unchecked.
+- Concretely testable: log the rotation gradient's magnitude/direction
+  variance across consecutive frames for sparse vs dense, or try
+  artificially increasing just the tracking pixel budget (independent of
+  `MAX_NUM_RENDERED`/hardware) to see if rotation error growth rate drops
+  as sample size increases — that would confirm a sample-size/conditioning
+  explanation over a discrete bug.
+- Once hardware allows, re-run with `SPLATONIC_DEBUG_ATE=1` on the A100
+  with the full `MAX_NUM_RENDERED=16,000,000` restored — expected to
+  reproduce the same rotation-specific divergence (the mechanism is
+  Python-side and dataset-driven, not GPU-driven), but worth confirming,
+  and having per-frame rotation-error logging from the start will make any
+  future investigation much faster than reconstructing it from periodic
+  ATE checkpoints again.
