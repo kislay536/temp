@@ -1235,6 +1235,57 @@ statistics frame-by-frame (not a synthetic scene).
 Scripts saved at `/tmp/.../scratchpad/test_theta_bias.py` and `_v2.py`
 (session-local, not in the repo) for reference.
 
+### Attempted (confounded): cross-parameter isolation experiment on real frames
+
+Implemented the isolation experiment recommended above:
+`FrontEnd._debug_isolate_rotation()` (`slam_frontend.py`), triggered by
+`SPLATONIC_DEBUG_ISOLATE_FRAME=<comma-separated frame list>`. At each
+target frame, from the same starting pose, with translation and exposure
+frozen, it runs a from-scratch 100-iteration rotation-only optimization
+twice — once under the dense loss, once under the sparse loss — and
+compares the two resulting rotation-only minima to each other and to the
+true rotation. It fully restores the viewpoint's real post-tracking state
+afterward, so the live trajectory is unaffected (verified: frames after
+the isolate frame continue with normal-looking numbers).
+
+Results across 8 frames (50, 100, 150, 200, 230, 260, 290, 320):
+
+| Frame | true | dense-only | sparse-only |
+|---|---|---|---|
+| 50 | 0.688 | 0.645 | 1.260 |
+| 100 | 1.108 | 1.309 | 1.364 |
+| 150 | 0.632 | 1.723 | 1.898 |
+| 200 | 0.612 | 1.462 | 2.337 |
+| 230 | 0.542 | 1.411 | 1.383 |
+| 260 | 1.603 | 2.535 | 2.453 |
+| 290 | 1.553 | 1.508 | 1.689 |
+| 320 | 1.234 | 2.007 | 2.346 |
+
+**This is confounded, not decisive.** Dense-only *also* overshoots the
+true rotation at 6 of 8 frames, by a similar order of magnitude to
+sparse-only (both roughly 1.5-3x true in most frames) — nothing like the
+dramatic real-trajectory asymmetry (dense bounded under 4° cumulative,
+sparse reaching 60°+). The likely reason: this test runs against the
+*live Gaussian model from the sparse run itself*, which by frame 150+ has
+already been shaped by mapping using that same run's (already
+somewhat-drifting) tracked poses. So both the dense-only and sparse-only
+sub-tests are evaluated against a **shared, already-contaminated map**,
+not a clean/independent reference scene — it isn't the controlled A/B
+comparison it was meant to be. A frame's *isolated, single-shot* rotation
+optimum also can't benefit from whatever makes the *real, sequential*
+dense trajectory self-correcting (continuous re-estimation against a map
+that dense itself keeps accurate) — so this test structurally cannot
+capture the sequential/compounding effect that hypothesis 5 pointed at.
+
+**What a clean version would need:** run the dense-only and sparse-only
+sub-optimizations at a given frame against a common *reference* Gaussian
+model built from the **dense run's** trajectory (known-good map) rather
+than whichever run happens to be live — e.g., load the dense run's
+checkpoint Gaussians as a fixed scene and compare rotation-only optima
+against that fixed target for both loss formulations. Not attempted
+tonight (needs cross-run state loading, real engineering, not a quick
+diagnostic).
+
 ### Summary of tonight's investigation (Milestone 5, V3-V5)
 
 Eight angles tried on the sparse-tracking rotation-drift regression. Five
@@ -1273,45 +1324,58 @@ precise symptom, and one that ruled out the leading cause hypothesis:
    error stays flat across the sequence while the overshoot ratio nearly
    doubles. Rules out the leading "depth-estimate error feeds a
    depth-dependent rotation gradient" hypothesis.
+9. **Cross-parameter isolation experiment** (freeze translation/exposure,
+   optimize only rotation, dense loss vs. sparse loss, same frame): across
+   8 frames, dense-only *also* overshoots the true rotation at 6/8 frames,
+   by a similar order of magnitude to sparse-only — **confounded, not
+   decisive**. Both sub-tests run against the sparse run's own live
+   (already partially-drift-contaminated) Gaussian model, so it isn't the
+   clean, independent A/B comparison it was meant to be. See the writeup
+   above for what a clean version would need (a shared reference map from
+   the dense run).
 
-**Bottom line:** the sparse photometric loss's rotation minimum, for
-whatever pixels happen to get sampled each frame, is itself systematically
-displaced from the true pose — not noisier around the right answer, but
-converging cleanly to a wrong one, consistently over-rotating by about
-2x. This is now a precisely characterized bug, not a vague "sparse pixels
-are less robust" story. What's solid: reproducible across 7+ independent
-real SLAM runs, not GPU/VRAM-caused, pre-existed this session's CUDA work,
-specific to rotation (translation is fine), not explained by mask
-resampling/loss scale/pixel count/single-frame gradient noise, and not a
-premature-stopping artifact.
+**Bottom line:** the precise *symptom* is nailed down — sparse tracking's
+rotation optimizer converges cleanly (not a stopping-criterion or noise
+artifact) to a value that averages ~2x the true per-frame rotation,
+compounding frame-to-frame into the observed drift. What's ruled out as
+the *cause*: mask staleness, loss scale, pixel count, single-frame
+gradient noise (on a synthetic scene), and depth-estimate error. What's
+*not yet cleanly tested*: whether a single frame's sparse rotation-only
+loss landscape, evaluated against an uncorrupted reference map, is
+actually displaced relative to dense's — attempt #9 tried this but was
+confounded by evaluating both against an already-compromised shared map,
+and, on top of that, the comparable dense-only/sparse-only overshoot
+magnitudes it *did* show reopen hypothesis 5's original point: the huge
+real-trajectory asymmetry (dense bounded <4°, sparse unbounded to 60°+)
+may be much more about **sequential, compounding dynamics across hundreds
+of frames** — including the tracking→mapping→tracking feedback loop —
+than about any single frame's loss landscape at all.
 
-**What's still open:** *why* the sparse loss's rotation minimum is
-displaced — the depth-mediated explanation didn't pan out, so the actual
-cause remains unknown after eight tested angles. Untested candidates for
-whoever continues this:
-- **Spatial distribution of the sample**, not its depth: `generate_random_
-  mask` places exactly one (or k) pixel per 16x16 tile — decent *coverage*
-  but each tile's *exact* pixel is uniform-random within it. Check whether
-  the overshoot correlates with how much the actual sampled points that
-  frame happen to cluster near the image center (low rotation signal) vs.
-  periphery (high rotation signal), rather than with depth.
-- **The `opacity` weighting term** in `get_loss_tracking_sparse` — dense
-  and sparse both weight residuals by rendered opacity, but sparse's
-  opacity estimate at only ~600-4800 points, from a possibly-immature or
-  differently-converged Gaussian model, could carry its own bias distinct
-  from depth.
-- **Exposure compensation** (`viewpoint.exposure_a/b`, optimized jointly
-  with pose every frame) — check whether it converges to different values
-  under sparse vs. dense supervision in a way that distorts the effective
-  photometric residual driving the rotation gradient.
-- A cleaner **isolation experiment**: freeze `exposure_a/b` and `cam_trans_
-  delta` (zero learning rate) and optimize *only* `cam_rot_delta` against
-  the sparse loss for a single hard-segment frame, then compare the
-  resulting minimum to the dense-loss minimum for the identical frame —
-  this removes cross-parameter coupling as a confound entirely.
+**What's solid regardless:** reproducible across 9+ independent real SLAM
+runs, not GPU/VRAM-caused, pre-existed this session's CUDA work, specific
+to rotation (translation is fine), not a premature-stopping artifact.
 
-Ideally done on faster hardware (each full run costs 15-20 minutes on this
-dev GPU); the real-loop instrumentation built tonight
-(`SPLATONIC_DEBUG_ATE`, now logging true/estimated rotation, iteration
-count, convergence status, and depth error) makes each of these cheap to
-add and re-run once faster hardware is available.
+**Recommended next steps, in order of how much new engineering they need:**
+1. (Cheapest) Log per-frame rotation overshoot alongside the *spatial
+   spread* of that frame's sampled pixels (e.g., mean distance from image
+   center) — tests whether periphery-vs-center sample composition
+   correlates with overshoot, using only the instrumentation already built.
+2. (Moderate) Fix attempt #9's confound: build a small offline harness
+   that loads the **dense run's** saved Gaussian checkpoint as a fixed,
+   uncorrupted reference scene, and re-run the same dense-loss-vs-sparse-
+   loss rotation-only comparison against that shared, known-good map for
+   several frames.
+3. (Most engineering) Directly test the sequential-dynamics hypothesis: run
+   the real tracking loop but substitute the *dense* loss for a handful of
+   consecutive frames in the middle of a sparse run's hard segment (a
+   temporary, throwaway modification) and see whether the trajectory
+   self-corrects the way pure dense does, or whether the map/state
+   contamination from earlier sparse frames has already made recovery
+   impossible regardless of which loss subsequent frames use.
+
+All of this is far cheaper to execute on faster hardware (each full run
+costs 15-20 minutes on this dev GPU); the real-loop instrumentation built
+tonight (`SPLATONIC_DEBUG_ATE`'s true/estimated rotation, iteration count,
+convergence status, depth error, plus `_debug_isolate_rotation`'s
+cross-parameter isolation) makes all three cheap to extend once faster
+hardware is available.

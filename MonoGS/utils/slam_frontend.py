@@ -127,11 +127,88 @@ class FrontEnd(mp.Process):
         self.request_init(cur_frame_idx, viewpoint, depth_map)
         self.reset = False
 
+    def _debug_isolate_rotation(
+        self, cur_frame_idx, viewpoint, R_start, T_start,
+        exposure_a_start, exposure_b_start, pixel_range, pixel_coords, pixel_mask,
+        true_step_deg,
+    ):
+        """
+        One-off diagnostic (not part of the live trajectory): from the same
+        starting pose, optimize ONLY cam_rot_delta (translation and exposure
+        frozen) under the dense loss and under the sparse loss separately,
+        and compare the resulting rotation-only minima directly. Restores
+        viewpoint's real post-tracking state before returning so the live
+        SLAM sequence is unaffected. See port/STATUS.md section 9.
+        """
+        R_real = viewpoint.R.detach().clone()
+        T_real = viewpoint.T.detach().clone()
+        ea_real = viewpoint.exposure_a.detach().clone()
+        eb_real = viewpoint.exposure_b.detach().clone()
+
+        def run(use_sparse, n_iters=100):
+            viewpoint.update_RT(R_start, T_start)
+            with torch.no_grad():
+                viewpoint.cam_rot_delta.data.fill_(0)
+                viewpoint.cam_trans_delta.data.fill_(0)
+                viewpoint.exposure_a.data.copy_(exposure_a_start)
+                viewpoint.exposure_b.data.copy_(exposure_b_start)
+            opt = torch.optim.Adam(
+                [{"params": [viewpoint.cam_rot_delta], "lr": self.config["Training"]["lr"]["cam_rot_delta"]}]
+            )
+            for _ in range(n_iters):
+                render_pkg = render(
+                    viewpoint, self.gaussians, self.pipeline_params, self.background,
+                    pixel_range=pixel_range if use_sparse else None,
+                    pixel_coords=pixel_coords if use_sparse else None,
+                    use_track_rasterizer=use_sparse,
+                )
+                image, depth, opacity = render_pkg["render"], render_pkg["depth"], render_pkg["opacity"]
+                opt.zero_grad()
+                if use_sparse:
+                    loss = get_loss_tracking_sparse(
+                        self.config, image, depth, opacity, viewpoint, pixel_mask=pixel_mask
+                    )
+                else:
+                    loss = get_loss_tracking(self.config, image, depth, opacity, viewpoint)
+                loss.backward()
+                with torch.no_grad():
+                    opt.step()
+                    update_pose(viewpoint)
+            R_final = viewpoint.R.detach().clone()
+            return R_final
+
+        R_dense_only = run(use_sparse=False)
+        R_sparse_only = run(use_sparse=True)
+
+        def ang(Ra, Rb):
+            Rrel = Ra.T @ Rb.to(dtype=Ra.dtype)
+            return float(torch.rad2deg(torch.arccos(torch.clamp((torch.trace(Rrel) - 1) / 2, -1, 1))).cpu())
+
+        dense_step = ang(R_start, R_dense_only)
+        sparse_step = ang(R_start, R_sparse_only)
+        divergence = ang(R_dense_only, R_sparse_only)
+        print(
+            f"DBG_ISOLATE frame={cur_frame_idx} true_step_deg={true_step_deg:.3f} "
+            f"dense_only_step_deg={dense_step:.3f} sparse_only_step_deg={sparse_step:.3f} "
+            f"dense_vs_sparse_divergence_deg={divergence:.3f}",
+            flush=True,
+        )
+
+        viewpoint.update_RT(R_real, T_real)
+        with torch.no_grad():
+            viewpoint.cam_rot_delta.data.fill_(0)
+            viewpoint.cam_trans_delta.data.fill_(0)
+            viewpoint.exposure_a.data.copy_(ea_real)
+            viewpoint.exposure_b.data.copy_(eb_real)
+
     def tracking(self, cur_frame_idx, viewpoint):
         prev = self.cameras[cur_frame_idx - self.use_every_n_frames]
         viewpoint.update_RT(prev.R, prev.T)
         if os.environ.get("SPLATONIC_DEBUG_ATE"):
             R_start = viewpoint.R.detach().clone()
+            T_start = viewpoint.T.detach().clone()
+            exposure_a_start = viewpoint.exposure_a.detach().clone()
+            exposure_b_start = viewpoint.exposure_b.detach().clone()
             R_gt_start = prev.R_gt.detach().to(dtype=R_start.dtype)
             R_gt_end = viewpoint.R_gt.detach().to(dtype=R_start.dtype)
             R_rel_gt = R_gt_start.T @ R_gt_end
@@ -259,6 +336,16 @@ class FrontEnd(mp.Process):
                 f"n_iters={tracking_itr + 1} converged={converged} depth_err={depth_err_str}",
                 flush=True,
             )
+            isolate_frames_str = os.environ.get("SPLATONIC_DEBUG_ISOLATE_FRAME")
+            isolate_frames = (
+                {int(x) for x in isolate_frames_str.split(",")} if isolate_frames_str else set()
+            )
+            if cur_frame_idx in isolate_frames and pixel_mask is not None:
+                self._debug_isolate_rotation(
+                    cur_frame_idx, viewpoint, R_start, T_start,
+                    exposure_a_start, exposure_b_start, pixel_range, pixel_coords, pixel_mask,
+                    true_step_deg,
+                )
         return render_pkg
 
     def is_keyframe(
