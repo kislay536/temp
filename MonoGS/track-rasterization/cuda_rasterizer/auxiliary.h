@@ -21,6 +21,13 @@
 // collected_color[] (renderCUDA) as zero-length shared arrays.
 #define NUM_WARPS ((BLOCK_SIZE + 31)/32)
 
+// SPLATONIC: number of active lanes in a warp for THIS build's BLOCK_SIZE.
+// track: BLOCK_SIZE=256 -> full 32-lane warps. map: BLOCK_SIZE=16 -> a single
+// partial warp. Both are powers of two, so shuffle-reduce loops that bound
+// on this (instead of a hardcoded 32) are correct for either configuration.
+// Shared by forward.cu's and backward.cu's renderCUDA kernels.
+#define WARP_SIZE_EFF (BLOCK_SIZE < 32 ? BLOCK_SIZE : 32)
+
 // SPLATONIC: ln(255) — preemptive alpha culling threshold in preprocessCUDA
 __device__ constexpr float lowest_alpha_coeff = 5.54126354515842f;
 

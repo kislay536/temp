@@ -38,7 +38,9 @@ namespace BACKWARD
 		float4* dL_dconic2D,
 		float* dL_dopacity,
 		float* dL_dcolors,
-		float* dL_ddepths);
+		float* dL_ddepths,
+		const int2* pixel_coords,  // SPLATONIC: sparse pixel coords (int2 per pixel)
+		int num_pixels);           // SPLATONIC: total number of sparse pixels to render
 
 	void preprocess(
 		int P, int D, int M,

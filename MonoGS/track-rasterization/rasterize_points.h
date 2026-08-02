@@ -55,6 +55,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
     const torch::Tensor& projmatrix_raw,
     const float tan_fovx,
 	const float tan_fovy,
+	const torch::Tensor& pixel_range,
 	const torch::Tensor& pixel_coords,
     const torch::Tensor& dL_dout_color,
     const torch::Tensor& dL_dout_depth,

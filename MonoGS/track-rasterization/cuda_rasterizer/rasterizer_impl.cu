@@ -388,6 +388,8 @@ void CudaRasterizer::Rasterizer::backward(
     const float* projmatrix_raw,
     const float* campos,
 	const float tan_fovx, float tan_fovy,
+	const int* pixel_range,
+	const int* pixel_coords,
 	const int* radii,
 	char* geom_buffer,
 	char* binning_buffer,
@@ -420,7 +422,13 @@ void CudaRasterizer::Rasterizer::backward(
 	const float focal_x = width / (2.0f * tan_fovx);
 
 	const dim3 tile_grid((width + BLOCK_X - 1) / BLOCK_X, (height + BLOCK_Y - 1) / BLOCK_Y, 1);
-	const dim3 block(BLOCK_X, BLOCK_Y, 1);
+
+	// SPLATONIC: mirror CU4.5's forward dispatch -- one block per sampled pixel,
+	// num_pixels read from pixel_range's sentinel entry (Gap 12).
+	int num_pixels = 0;
+	CHECK_CUDA(cudaMemcpy(&num_pixels, pixel_range + tile_grid.x * tile_grid.y, sizeof(int), cudaMemcpyDeviceToHost), debug);
+	const dim3 pixel_grid(num_pixels, 1, 1);
+	const dim3 pixel_block(BLOCK_SIZE, 1, 1);
 
 	// Compute loss gradients w.r.t. 2D mean position, conic matrix,
 	// opacity and RGB of Gaussians from per-pixel loss gradients.
@@ -429,8 +437,8 @@ void CudaRasterizer::Rasterizer::backward(
     const float* depth_ptr = geomState.depths;
 
 	CHECK_CUDA(BACKWARD::render(
-		tile_grid,
-		block,
+		pixel_grid,
+		pixel_block,
 		imgState.ranges,
 		binningState.point_list,
 		width, height,
@@ -447,7 +455,9 @@ void CudaRasterizer::Rasterizer::backward(
 		(float4*)dL_dconic,
 		dL_dopacity,
 		dL_dcolor,
-		dL_ddepth
+		dL_ddepth,
+		reinterpret_cast<const int2*>(pixel_coords),
+		num_pixels
     ), debug)
 
 	// Take care of the rest of preprocessing. Was the precomputed covariance

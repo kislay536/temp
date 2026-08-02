@@ -1,6 +1,6 @@
 # SPLATONIC-on-MonoGS Port — Status
 
-Last updated: 2026-08-02 (CU4.1–CU4.5, CU5.1–CU5.6, and CU6.1/CU6.3 done; full `pip install` down to 1 expected error; Milestone 4b closed, Milestone 4c in progress)
+Last updated: 2026-08-02 (CU8.1–CU8.4 done — **both packages now `pip install` successfully for the first time in this port**, full end-to-end forward+backward verified through the real compiled extension; Milestone 4b closed, Milestone 4c nearly done)
 
 Roadmap: `port/MILESTONE_PLAN_V3.md`. This document is a snapshot of what has
 been done, what changed where, and what is still open. It is not itself a
@@ -84,6 +84,46 @@ the roadmap) and resolved it the same way. **Full `pip install` is now
 down to exactly one error on each package** — a deliberate, staged one
 (Gap 11, deferred to CU8) — down from 9 at the start of this session.
 
+**New this update — CU8, the sparse backward kernel, and the first fully
+successful builds of the whole port.** Closed Gap 11 (`rasterizer_impl.cu`'s
+`Rasterizer::backward()` definition now matches its header), found and
+closed two more instances of the same pattern (Gap 12: `backward.h` never
+gained `pixel_coords`/`num_pixels`; Gap 13: `Rasterizer::backward()` needed
+`pixel_range` too, to derive `num_pixels` the same way forward does — not
+literally asked for by CU6.3, but structurally required). Rewrote
+`backward.cu`'s `renderCUDA` against SPLATONIC's real reverse-traversal,
+cross-warp-serialized algorithm (same source as CU5), extended with a
+depth-gradient channel (MonoGS-only; SPLATONIC's backward has no depth
+loss) using the identical suffix-sum machinery, minus the background term
+depth doesn't have. `WARP_SIZE_EFF` was hoisted from `forward.cu` into
+`auxiliary.h` so both kernels share it. **After both packages compiled
+clean for the first time, a real Python forward+backward run through the
+actual compiled extension immediately found two further real bugs** — a
+translation bug of my own in `forward.cu` (the per-thread `done` flag was
+only updated when a Gaussian actually contributed, not whenever a thread
+ran out of real data, silently corrupting `n_contrib` for every pixel with
+fewer contributors than `BLOCK_SIZE` — i.e. almost every real pixel — with
+no effect on forward's own color/depth output, so Checkpoint B never
+caught it) and a sign error in SPLATONIC's own backward source (the
+background-color term inside `dL_dalpha`'s per-channel `diff` is `+
+T_final*bg_color[ch]` in SPLATONIC's real code; an independent derivation,
+cross-checked against the unmodified dense kernel's own formula and a
+from-scratch pure-PyTorch-autograd reference implementation, proves it
+must be `-`; with the wrong sign, `dL/dopacity` (and `dL/dmean2D`/
+`dL/dconic2D`, which share the same `dL_dalpha`) came out exactly 4x too
+large in a controlled test scene, while `dL/dcolor` — computed by an
+unrelated code path — was already exact). Both fixed; after fixing, a full
+gradient-flow + finite-difference check (opacity and color gradients
+against numerical derivatives, on a 20-Gaussian scene) passes on **both**
+`track_rasterization` and `map_rasterization`, `compute-sanitizer`
+memcheck+racecheck on the real Python-driven run are clean, and Checkpoint
+B (forward) still passes exactly as before. **Both `track-rasterization`
+and `map-rasterization` now `pip install` successfully — the first fully
+working builds since this port began.** CU8.5 (verify `BACKWARD::preprocess`
+untouched) and CU8.6 (the roadmap's own compile+gradient-flow test) are
+satisfied by this work; CU9 (activating the dispatch switch) and Milestone
+5 (validation) remain.
+
 ---
 
 ## 2. Milestone status table
@@ -124,7 +164,13 @@ down to exactly one error on each package** — a deliberate, staged one
 | CU7.3 | `None` returns for pixel args in `backward()` | ✅ Done, committed `6cd524f` |
 | CU7.4 | `pixel_range`/`pixel_coords` on `GaussianRasterizer.forward()` + free-function `rasterize_gaussians()` | ✅ Done, committed `6cd524f` — confirmed backward-compatible with the existing all-keyword call site in `gaussian_renderer/__init__.py` |
 | CU7.5 | End-to-end Python forward+backward test | ⬜ Blocked — needs the extension to actually `pip install` successfully, which needs Gap 11/CU8 closed first (same deferral as CU5.8) |
-| CU8.1–CU9.2 | Sparse backward kernel, activation | Not started |
+| CU8.1 | `renderCUDA` backward kernel signature (`backward.cu`/`.h`) | ✅ Done, **uncommitted** — also closes Gaps 12–13 (see §5) |
+| CU8.2 | Block→pixel mapping in backward kernel | ✅ Done, **uncommitted** |
+| CU8.3 | Recover `(pix_x,pix_y)` from `pixel_coords` | ✅ Done, **uncommitted** |
+| CU8.4 | Warp prefix-scan for backward transmittance | ✅ Done **against SPLATONIC's real algorithm + a sign-bug fix**, **uncommitted** — see §5 Gap 14, §6h |
+| CU8.5 | Verify `BACKWARD::preprocess` untouched | ✅ Confirmed — `BACKWARD::preprocess`/`computeCov2DCUDA`/`preprocessCUDA` (backward) untouched; only `renderCUDA` and its wrapper changed |
+| CU8.6 | Compile + gradient-flow test | ✅ **Both packages `pip install` successfully — first fully working builds of this port.** Gradient flow + finite-difference check pass on both, real Python-driven run, `compute-sanitizer` clean (see §6h) |
+| CU9.1–CU9.2 | Activate dispatch switch, smoke test | Not started |
 
 ---
 
@@ -161,15 +207,22 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 - `rasterizer_impl.cu` — **(CU4.1–CU4.5, committed `cec8904`)**: `InclusiveSum`/`duplicateWithKeys` calls removed; `GeometryState::fromChunk()`'s dead `scanning_space`/`point_offsets` allocations removed (kept `tiles_touched`'s own allocation, Gap 6); `num_rendered` now read via `cudaMemcpy` from `num_rendered_dev` instead of the old prefix-sum readout; render launch switched from `tile_grid`/`dim3(BLOCK_X,BLOCK_Y,1)` to `dim3(num_pixels,1,1)`/`dim3(BLOCK_SIZE,1,1)`, passing `pixel_coords`/`num_pixels` through; `imgState.ranges` zeroing resized to `num_pixels` (Gap 7) and the radix-sort bit-width switched to `getHigherMsb(num_pixels)` (Gap 8)
 - `forward.cu` — **(CU5.1–CU5.6, committed `e18bf3b`)**: `renderCUDA` kernel rewritten for one-block-per-sampled-pixel dispatch with a cross-warp-serialized transmittance scan (ported from the real SPLATONIC source, not the roadmap's pseudocode — Gap 9), `WARP_SIZE_EFF`/`__activemask()`-based shuffle masks (sub-warp-safe for map's `BLOCK_SIZE=16`), `n_touched` atomicAdd, cooperative early exit, block-wide color/depth reduction; `FORWARD::render` wrapper updated to accept and forward `pixel_coords`/`num_pixels` (closes Gap 5)
 - `auxiliary.h` — **(committed `e18bf3b`)**: `NUM_WARPS` changed from floor to ceiling division (`(BLOCK_SIZE+31)/32`) — floor division gives 0 for map's `BLOCK_SIZE=16`, sizing `renderCUDA`'s shared arrays as zero-length
-- `rasterize_points.h`/`.cu` — **(CU6.1/CU6.3, new this update, uncommitted)**: `RasterizeGaussiansCUDA` gains `pixel_range`/`pixel_coords` tensor params (extracted to raw `int*` and threaded into the `Rasterizer::forward()` call between `tan_fovy` and `prefiltered`, matching `rasterizer.h`'s declared order); `RasterizeGaussiansBackwardCUDA` gains `pixel_coords`, threaded into `Rasterizer::backward()`. CU6.2 and CU6.4 needed no changes (see milestone table §2)
-- `cuda_rasterizer/rasterizer.h` — **(Gap 11, new this update, uncommitted)**: `Rasterizer::backward()` declaration gains `const int* pixel_coords` after `tan_fovx, tan_fovy`
+- `rasterize_points.h`/`.cu` — **(CU6.1/CU6.3, committed `8563880`)**: `RasterizeGaussiansCUDA` gains `pixel_range`/`pixel_coords` tensor params (extracted to raw `int*` and threaded into the `Rasterizer::forward()` call between `tan_fovy` and `prefiltered`, matching `rasterizer.h`'s declared order); `RasterizeGaussiansBackwardCUDA` gains `pixel_coords`, threaded into `Rasterizer::backward()`. CU6.2 and CU6.4 needed no changes (see milestone table §2)
+- `cuda_rasterizer/rasterizer.h` — **(Gap 11, committed `8563880`)**: `Rasterizer::backward()` declaration gains `const int* pixel_coords` after `tan_fovx, tan_fovy`
+- `diff_gaussian_rasterization/__init__.py` — **(CU7.1–CU7.4, committed `6cd524f`)**: `pixel_range`/`pixel_coords` threaded through `_RasterizeGaussians.forward()`/`backward()` and `GaussianRasterizer.forward()`, with `None`-default empty-tensor fallback
+- `cuda_rasterizer/backward.h` — **(CU8.1/Gap 12, new this update, uncommitted)**: `BACKWARD::render()` declaration gains `const int2* pixel_coords, int num_pixels`, mirroring `forward.h`'s CU1.3 addition
+- `cuda_rasterizer/backward.cu` — **(CU8.1–CU8.4, new this update, uncommitted)**: `renderCUDA` rewritten for one-block-per-sampled-pixel, reverse (farthest-first) traversal, using the same cross-warp-serialized scan structure as `forward.cu`'s CU5 kernel (ported from SPLATONIC's real `backward.cu`, not the roadmap's skeletal CU8.1–CU8.4 text, which only says "mirror CU5.3–CU5.4" and cites the SPLATONIC line range); added a depth-gradient suffix-sum channel (MonoGS-only, SPLATONIC has none) mirroring the color channels' machinery minus the background term; fixed a sign error present in SPLATONIC's own source (Gap 14, §5); `BACKWARD::render()` wrapper updated to accept/forward `pixel_coords`/`num_pixels`
+- `cuda_rasterizer/rasterizer.h` — **(Gap 13, new this update, uncommitted)**: `Rasterizer::backward()` declaration gains `const int* pixel_range` too (not literally asked for by CU6.3, but structurally required to derive `num_pixels` for the pixel-based launch, the same way forward does)
+- `cuda_rasterizer/rasterizer_impl.cu` — **(CU8.1, closes Gap 11, new this update, uncommitted)**: `Rasterizer::backward()`'s definition updated to match its (now twice-extended) declaration: computes `num_pixels` via `cudaMemcpy` from `pixel_range`'s sentinel (mirroring CU4.5), switches the dispatch to `dim3(num_pixels,1,1)`/`dim3(BLOCK_SIZE,1,1)`, passes `pixel_coords`/`num_pixels` to `BACKWARD::render()`
+- `rasterize_points.h`/`.cu` — **(extends CU6.3, new this update, uncommitted)**: `RasterizeGaussiansBackwardCUDA` gains `pixel_range` too (companion to Gap 13), threaded into `Rasterizer::backward()`
+- `diff_gaussian_rasterization/__init__.py` — **(extends CU7.2/7.3, new this update, uncommitted)**: `pixel_range` added to `ctx.save_for_backward` and the backward `args` tuple (needed once the C++ signature required it)
+- `cuda_rasterizer/auxiliary.h` — **(new this update, uncommitted)**: `WARP_SIZE_EFF` moved here from `forward.cu` so `backward.cu` can use the same macro
 
 ### Not yet touched
 - `rasterizer_impl.h` (both rasterizers) — `GeometryState`/`BinningState` structs unchanged
-- `backward.cu`, `backward.h` — untouched, CU8 territory
 - `ext.cpp` — no change needed (see CU6.4 in §2)
-- `rasterizer_impl.cu`'s `Rasterizer::backward()` **definition** — deliberately left mismatched against the new declaration (Gap 11, staged break, resolved in CU8)
 - `submodules/diff-gaussian-rasterization/` — the original dense MonoGS rasterizer, verified untouched at every step and must stay that way
+- `backward.cu`'s `BACKWARD::preprocess()`, `computeCov2DCUDA`, `preprocessCUDA` (backward) — confirmed untouched (CU8.5)
 
 ### Roadmap document
 - `port/MILESTONE_PLAN_V3.md` — CU3.2/CU4.3 clarification committed (`91dd31d`). Note: the separately-drafted "Gap 3" clarification (adding an explicit `Rasterizer::forward()` signature-update item to CU3.2's text) was **not** applied to the roadmap file itself — it was authorized directly via explicit task instruction instead and implemented as described above. The roadmap text does not yet reflect this; consider folding it in for future readers.
@@ -187,6 +240,10 @@ All changes applied identically to both `track-rasterization/` and `map-rasteriz
 
 **Commits (most recent first):**
 ```
+<pending> feat(cuda-backward): CU8.1-CU8.4 sparse backward renderCUDA + sign fix  [CU8.1-8.4, Gaps 12-14, port/tests/test_checkpoint_c_e2e.py]
+2d19787 docs: fill in CU7 commit hash in STATUS.md ledger
+6cd524f feat(python-bridge): CU7.1-CU7.4 - thread pixel_range/pixel_coords through autograd wiring  [CU7.1-7.4]
+01cde60 docs: fill in CU6 commit hash in STATUS.md ledger
 8563880 feat(cuda-entry): CU6.1+CU6.3 pixel_range/pixel_coords through rasterize_points.cu  [CU6.1, CU6.3, Gap 11]
 2337267 docs: fill in commit hashes in STATUS.md ledger after CU5 commit
 e18bf3b feat(cuda-forward): CU5.1-CU5.6 sparse renderCUDA + Checkpoint B harness  [CU5.1-5.6, port/tests/test_render.cu]
@@ -214,7 +271,7 @@ history over a message string.
 
 ---
 
-## 5. Roadmap gaps found and resolved (Gaps 1–11)
+## 5. Roadmap gaps found and resolved (Gaps 1–14)
 
 **Gap 1 — buffer ownership contradiction.** CU3.2 originally said
 `gaussian_keys_unsorted`/`gaussian_values_unsorted` belonged to a new
@@ -451,9 +508,87 @@ that kernel a matching parameter to receive it (the same reasoning that
 kept Gap 5's wrapper fix out of CU4.5). This produces one new, fully
 expected, staged build error (`rasterizer_impl.cu`'s definition now
 mismatches the header) — the same "build fails on purpose, staged
-migration" pattern used successfully since CU1.1. Expect a "Gap 12"
-(`BACKWARD::render()`'s own wrapper likely needs the same treatment
-CU5.1 gave `FORWARD::render()`) to surface when CU8 is implemented.
+migration" pattern used successfully since CU1.1. **Closed in CU8**, as
+predicted.
+
+**Gap 12 — `backward.h`'s `BACKWARD::render()` declaration never gained
+`pixel_coords`/`num_pixels`, exactly mirroring Gap 5** (`forward.h` needed
+this via CU1.3; no equivalent step exists anywhere for `backward.h`).
+**Resolved** by folding the addition into CU8.1, the step that already
+touches `backward.cu`'s kernel signature — same reasoning as Gap 5's
+resolution in CU5.1.
+
+**Gap 13 — deriving `num_pixels` for the backward pixel-based launch
+needs `pixel_range`, which CU6.3 never asked for.** CU6.3's text only
+adds `pixel_coords` to `Rasterizer::backward()`. But `Rasterizer::backward()`'s
+own definition (CU8.1's job, once Gap 11 makes it buildable again) must
+launch `BACKWARD::render()` with `dim3(num_pixels,1,1)`, and the only
+established, consistent way to obtain `num_pixels` in this codebase is
+`cudaMemcpy`-ing `pixel_range`'s sentinel entry (CU4.5's own mechanism).
+**Resolved**: extended `rasterizer.h`'s `Rasterizer::backward()` (and,
+correspondingly, `RasterizeGaussiansBackwardCUDA` and the Python bridge)
+with `pixel_range` too, mirroring forward's exact pattern. Not literally
+requested by any CU, but the minimal necessary completion of CU6.3 given
+what CU8.1 turned out to need.
+
+**Gap 14 — a sign error in SPLATONIC's own backward source, found by a
+real Python-driven forward+backward run through the newly-compiling
+extension (the first time in this port either package actually built).**
+Ported `backward.cu`'s `renderCUDA` from SPLATONIC's real
+`cuda_rasterizer/backward.cu` (the roadmap's CU8.1–CU8.4 text is
+skeletal — "structure is symmetric to CU5.3–CU5.4... reference SPLATONIC
+`backward.cu` lines 205–320" — not literal pseudocode, so ground-truth
+was the only option, same situation as CU5). SPLATONIC's per-channel
+gradient term is:
+```cpp
+float diff = inv_alpha * ((1.0f - alpha) * cur_T * feature[ch] - cur_accum[ch] + T_final * bg_color[ch]);
+```
+An independent derivation of `dC/dalpha_k` from the forward compositing
+formula (`C = Σ alpha_i·T_before_i·c_i + T_final·bg`) gives
+`dT_final/dalpha_k = -T_final/(1-alpha_k)` (since `T_final` carries a
+`(1-alpha_k)` factor), which propagates a **negative** background term —
+confirmed against the unmodified dense kernel's own formula in this same
+codebase (`dL_dalpha += (-T_final/(1.f-alpha)) * bg_dot_dpixel;`,
+`backward.cu`, unrelated to this port) and against a from-scratch
+pure-PyTorch `torch.autograd` reference of the identical compositing math
+(zero manual gradient formulas, `port/tests` scratch-only, not committed).
+With SPLATONIC's `+` sign, a controlled 3-Gaussian test scene gave
+`dL/dopacity` values **exactly 4x** the reference's — `dL/dcolor` was
+unaffected, since it's computed via a separate code path
+(`dchannel_dcolor`) that never touches `dL_dalpha`. **Resolved**: changed
+`+ T_final * bg_color[ch]` to `-`. After the fix, analytic gradients
+match a finite-difference numerical check to <1% relative error across
+9 sampled (opacity, color-channel) pairs on a 20-Gaussian scene, on both
+`track_rasterization` and `map_rasterization`.
+
+**A second, unrelated bug was found in the same debugging session — in
+`forward.cu`, not `backward.cu`.** The per-thread `done` flag (used to
+decide when a pixel-block's warp-cooperative loop can stop early, and to
+compute `n_contrib`) was only reassigned *inside* the block that
+accumulates an actual contribution (`if (in_range && !done) { ...;
+if (T_before>0.5) atomicAdd(...); }` from CU5.6) — meaning a thread that
+ran permanently out of real Gaussians (`!in_range`, the common case for
+any pixel with fewer contributors than `BLOCK_SIZE`, i.e. nearly every
+real pixel) never signaled `done`, so `num_done` stayed 0 and
+`n_contrib[pix_id]` was written as a constant `BLOCK_SIZE` (256 for
+track, 16 for map) regardless of the pixel's true, usually much smaller,
+contributor count. **This had no effect on forward's own color/depth
+output** (Checkpoint B's 0-mismatch result was never wrong), but silently
+corrupted the one thing only backward consumes: `range.y = range.x +
+n_contrib[pix_id]`, causing backward to read `point_list` far past each
+pixel's legitimate sorted region — the proximate cause of the `NaN`/`Inf`
+gradients seen before Gap 14 was even reached. SPLATONIC's real forward
+source reassigns `done` unconditionally every round
+(`done = !in_range || T < 0.0001f;`, independent of whether the current
+Gaussian actually contributed) — this port's CU5.6 translation had
+narrowed that into a conditional update. **Resolved**: `done` is now an
+unconditional per-round reassignment (`done = !in_range || cur_T <
+0.0001f;`), matching SPLATONIC exactly; the separate, redundant
+`alpha > 1/255` gate was also removed since upstream `preprocessCUDA`
+pruning already guarantees it for every real entry (the same identity
+established when resolving Gap 4). Re-ran Checkpoint B after this change
+— still 0 mismatches on both tilings, confirming forward's own output was
+never affected, only backward's consumption of `n_contrib`.
 
 ---
 
@@ -665,27 +800,74 @@ install successfully for the first time.
 
 ---
 
+## 6g. CU8.1–CU8.4 build results
+
+Same process, both packages. **`pip install -e .` succeeds — exit code 0,
+zero errors — for the first time in this entire port**, on both
+`track-rasterization` and `map-rasterization`. `import track_rasterization`
+/ `import map_rasterization` both load cleanly (verified from a neutral
+working directory; importing both packages' `diff_gaussian_rasterization`-named
+submodules in the *same* interpreter process via ambiguous cwd-relative
+imports was tried first and crashed at interpreter exit — confirmed to be
+a self-inflicted test artifact from loading two unrelated compiled `.so`
+files under colliding names, not a real bug: each package imports and
+exits cleanly on its own, which is how MonoGS actually uses them).
+
+---
+
+## 6h. Checkpoint C: end-to-end Python forward+backward verification
+
+`port/tests/test_checkpoint_c_e2e.py` (+ `run_checkpoint_c.sh`) — unlike
+Checkpoints A and B, this drives the **actual, pip-installed** package
+through its real public Python API (`GaussianRasterizer`), not a
+standalone C++ harness. This is the first verification in the whole port
+that exercises the complete real stack: Python → pybind11 → `rasterize_points.cu`
+→ `Rasterizer::forward()`/`backward()` → the CUDA kernels.
+
+**Scene:** 20 randomly-placed, overlapping Gaussians, 32×32 image, all
+pixels densely sampled (tile-sorted, matching `mask_utils.get_pixel_info`'s
+layout), real `torch.autograd` end-to-end through `_RasterizeGaussians`.
+
+**Checks, both `track_rasterization` and `map_rasterization`:**
+- `color.shape == (3, H, W)`, `n_touched.sum() > 0` (CU5.7/CU7.5's own checks)
+- `theta`/`rho`/`opacity`/`color`/`means2D` gradients all flow and are non-zero (CU8.6's own check)
+- Finite-difference cross-check: 6 `dL/dopacity` + 3 `dL/dcolor` samples, all within <1% relative error of numerical derivatives
+- `compute-sanitizer` memcheck + racecheck on the real Python-driven run: 0 errors, 0 hazards
+- Re-ran Checkpoint B (forward-only, C++) after every backward-side fix to confirm forward regressed at no point
+
+This is the strongest evidence available that the port is functionally
+correct end-to-end for a static scene — the two real bugs described in
+§5 Gaps 14 and its companion (`forward.cu`'s `done` flag) were both found
+*because* this checkpoint exists and actually exercises gradients through
+the real compiled package, not just a hand-rolled harness.
+
+---
+
 ## 7. Immediate next steps
 
-1. **Commit CU6.1/CU6.3** (`rasterize_points.h`/`.cu` pixel param
-   threading, `rasterizer.h`'s Gap 11 declaration fix) — implemented and
-   verified this update, not committed yet.
+1. **Commit CU8.1–CU8.4** (`backward.cu`/`.h`, `rasterizer.h`'s Gap 13
+   extension, `rasterizer_impl.cu`'s Gap 11 closure, `rasterize_points.h`/`.cu`'s
+   `pixel_range` addition to the backward path, `diff_gaussian_rasterization/__init__.py`'s
+   matching Python-side threading, `port/tests/test_checkpoint_c_e2e.py` +
+   `run_checkpoint_c.sh`) — implemented and verified this update, not
+   committed yet.
 2. **CU5.8** (regression test on dense MonoGS — a real tracking loop
-   compared against the dense baseline) genuinely needs a live `slam.py`
-   run with a real dataset and the dispatch switch wired up enough to
-   invoke the sparse path, which isn't possible until CU7/CU9 land.
-   Deferred; Checkpoint B (§6e) is the strongest available substitute for
-   now (exact numerical match against a brute-force reference).
-3. Continue to **CU7.1–CU7.5** (autograd wiring): add pixel args to
-   `_RasterizeGaussians.forward()`/`backward()`, `ctx.save_for_backward`,
-   `GaussianRasterizer.forward()`, end-to-end Python forward+backward test.
-4. Then **CU8 (sparse backward kernel — apply the same SPLATONIC
-   cross-reference rigor used for CU5, since backward is at least as
-   algorithmically delicate as forward; also close Gap 11 by updating
-   `rasterizer_impl.cu`'s `Rasterizer::backward()` definition and likely a
-   "Gap 12" `BACKWARD::render()` wrapper fix mirroring CU5.1's)**, **CU9
-   (activate the dispatch switch + smoke test)**, and **Milestone 5
-   (validation)**.
+   compared against the dense baseline) still needs a live `slam.py` run
+   with a real dataset, which needs CU9's dispatch switch wired up.
+   Checkpoint C (§6h) is now a much stronger substitute than before (real
+   gradient flow through the actual compiled package, not just a
+   standalone harness) but is still a static-scene test, not a live SLAM
+   run.
+3. Continue to **CU9.1–CU9.2**: implement the actual dispatch switch in
+   `gaussian_renderer/render()` (currently a stub — "Always uses dense
+   rasterizer until then") so `use_track_rasterizer`/`use_map_rasterizer`
+   actually select `track_rasterization`/`map_rasterization` instead of
+   the untouched dense submodule, then a full `slam.py` smoke test.
+4. Then **Milestone 5** (validation): confirm the FLIP counter and
+   densification gating actually exercise the real sparse rasterizer
+   (not the dense stub they've been validated against so far), baseline
+   ATE comparison on TUM fr1_desk, FPS benchmark, PSNR/SSIM sparse vs
+   dense.
 5. (Optional, cosmetic) Fold the Gap 3 clarification into
    `MILESTONE_PLAN_V3.md`'s CU3.2 text so the roadmap document itself
    reflects what was actually authorized and built.

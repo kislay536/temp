@@ -73,6 +73,7 @@ namespace CudaRasterizer
             const float* projmatrix_raw,
             const float* campos,
 			const float tan_fovx, float tan_fovy,
+			const int* pixel_range,           // SPLATONIC — NEW; needed to derive num_pixels for the pixel-based launch (Gap 12)
 			const int* pixel_coords,          // SPLATONIC — NEW (int2 stored as int*); see CU6.3/CU8
 			const int* radii,
 			char* geom_buffer,

@@ -288,12 +288,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	}
 }
 
-// SPLATONIC: number of active lanes in a warp for THIS build's BLOCK_SIZE.
-// track: BLOCK_SIZE=256 -> full 32-lane warps. map: BLOCK_SIZE=16 -> a single
-// partial warp. Both are powers of two, so shuffle-reduce loops that bound
-// on this (instead of a hardcoded 32) are correct for either configuration.
-#define WARP_SIZE_EFF (BLOCK_SIZE < 32 ? BLOCK_SIZE : 32)
-
 // SPLATONIC: one block per SAMPLED pixel (not one block per tile). All
 // threads in the block cooperatively walk that pixel's sorted Gaussian range
 // (nearest-to-farthest), maintaining a running transmittance T via a warp
@@ -430,8 +424,18 @@ renderCUDA(
 		                                    // NUM_WARPS==1 (map) the cross-warp fold loop above is a
 		                                    // no-op, so T is never otherwise updated within a round.
 
-		bool contributes = in_range && !done && alpha > 1.0f / 255.0f;
-		if (contributes)
+		// Unconditional per-round reassignment, matching SPLATONIC exactly: once a
+		// thread runs permanently out of real Gaussians (!in_range, monotonic) or
+		// its post-Gaussian transmittance has converged, it's done. This MUST be
+		// unconditional (not gated behind an accumulation check) -- gating it
+		// behind "did this thread contribute" left padding threads (the majority,
+		// once a pixel's range is smaller than BLOCK_SIZE) never signaling done,
+		// so num_done stayed 0 and n_contrib was written as BLOCK_SIZE regardless
+		// of the pixel's actual (usually much smaller) range size, corrupting
+		// backward's range clipping (range.y = range.x + n_contrib).
+		done = !in_range || cur_T < 0.0001f;
+
+		if (in_range && !done)
 		{
 			for (int c = 0; c < CHANNELS; c++)
 				C[c] += features[gid * CHANNELS + c] * alpha * T_before;
@@ -442,9 +446,6 @@ renderCUDA(
 			// Must be atomic: multiple pixel-blocks can share a Gaussian.
 			if (T_before > 0.5f)
 				atomicAdd(&n_touched[gid], 1);
-
-			if (cur_T < 0.0001f)
-				done = true;
 		}
 		__syncthreads();
 	}
