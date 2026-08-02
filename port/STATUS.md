@@ -1033,7 +1033,7 @@ so a partial late recovery barely moves the final aggregate number. The
 two views aren't contradictory, they're answering different questions
 (instantaneous pose error vs. summary error over the full trajectory).
 
-### Recommended next steps
+### Recommended next steps (superseded — see "Summary of tonight's investigation" at the end of this section for the current, up-to-date recommendation)
 
 - Investigate the `cam_rot_delta` (`theta`) gradient path specifically,
   as computed from a small, randomly-scattered ~600-pixel subsample versus
