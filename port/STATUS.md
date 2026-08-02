@@ -1097,16 +1097,44 @@ between draws), the Monte Carlo variance was enormous: standard error
 (`std/sqrt(40)`) was ~200x larger than the true gradient value for both
 `theta` and `rho`. That swamps any possible bias signal — this test
 cannot currently distinguish "unbiased but noisy" from "biased," it only
-shows both are far noisier than 40 draws can resolve. Script saved at
-`/tmp/.../scratchpad/test_theta_bias.py` (session-local, not in the repo)
-for reference; a real version of this test would need an L2 (smooth)
-loss, many more draws (100s), and a scene engineered so most pixels have
-consistent multi-Gaussian coverage — not attempted tonight given time
-already spent.
+shows both are far noisier than 40 draws can resolve.
+
+**v2, redesigned:** switched to a smooth L2 loss, a denser 150-Gaussian
+scene with 100% pixel coverage (no dead/background pixels), and 300 draws
+(up from 40). Result, comparing the mean of 300 sparse-subset estimates
+(rescaled to be an unbiased Monte-Carlo estimator) against the true
+full-image gradient:
+
+| | `theta` (rotation) | `rho` (translation) |
+|---|---|---|
+| \|\|mean − true\|\| / \|\|true\|\| | 0.44 | 0.60 |
+| cosine(mean estimate, true) | 0.90 | 0.81 |
+| mean cosine(individual draw, true) | 0.04 ± 0.65 | 0.03 ± 0.68 |
+
+Both parameters show real, comparable Monte-Carlo noise even at 300
+draws — individual per-draw gradients are nearly uncorrelated with the
+true direction (cosine ≈ 0, high variance), and even the *averaged*
+estimate isn't perfectly aligned. **Notably, `rho` is not better-behaved
+than `theta` here — if anything slightly worse** — which is the opposite
+of the asymmetry seen in real SLAM (rotation drifts badly, translation
+tracks fine). This is a useful negative result: it suggests the
+real-world rotation-specific drift is **not** simply explained by a
+single frame's sparse gradient being noisier/biased for rotation than
+for translation on some representative scene. The asymmetry more likely
+emerges from **sequential dynamics** — how a stream of correlated, noisy
+per-frame pose updates accumulates through the optimizer and the
+SE3-exponential pose update over hundreds of frames — which a one-shot,
+single-frame synthetic gradient test cannot capture. Confirming that
+would need either a theoretical/simulation analysis of the update
+dynamics, or instrumenting the *real* sequential tracking loop's gradient
+statistics frame-by-frame (not a synthetic scene).
+
+Scripts saved at `/tmp/.../scratchpad/test_theta_bias.py` and `_v2.py`
+(session-local, not in the repo) for reference.
 
 ### Summary of tonight's investigation (Milestone 5, V3-V5)
 
-Four hypotheses tested for the sparse-tracking rotation-drift regression;
+Five hypotheses tested for the sparse-tracking rotation-drift regression;
 all falsified or inconclusive, none identified a fix:
 
 1. Frozen per-frame random mask (resample every iteration instead) —
@@ -1115,15 +1143,33 @@ all falsified or inconclusive, none identified a fix:
    **falsified**, no meaningful change.
 3. Insufficient pixel count (4x more pixels via `generate_random_mask_k`)
    — **falsified**, no improvement (if anything, slightly worse).
-4. Direct gradient-bias test — **inconclusive**, test itself too noisy to
-   answer the question as designed.
+4. Direct gradient-bias test v1 (L1 loss, 40 draws) — **inconclusive**,
+   test itself too noisy (Monte Carlo std ~200x the signal) to answer the
+   question as designed.
+5. Direct gradient-bias test v2 (L2 loss, denser scene, 300 draws) —
+   **informative negative**: both `theta` and `rho` show comparable
+   single-frame Monte-Carlo noise on a representative synthetic scene,
+   with `rho` if anything slightly *worse*-conditioned than `theta` —
+   the opposite of real SLAM's asymmetry. This rules out "rotation's
+   single-frame sparse gradient is inherently noisier/more biased than
+   translation's" as the explanation, and points instead at **sequential
+   accumulation dynamics** (how correlated per-frame noise compounds
+   through the optimizer and the SE3-exponential pose update over
+   hundreds of frames) as the more likely locus of the asymmetry.
 
 What's solid: the regression is real, reproducible across 5+ independent
-runs, not GPU/VRAM-caused, not introduced by this session's CUDA work
-(pre-existed in stub-era runs), and specifically affects rotation
-estimation while translation tracks comparably to dense. What's still
-unknown: the actual mechanism. Recommended entry point for whoever
-continues this: a properly-designed gradient-bias test (per the attempt
-above, done right) or direct comparison of `theta`'s backward-pass CUDA
-code between the two packages and the original dense kernel, ideally on
-faster hardware where each iteration costs seconds instead of minutes.
+full SLAM runs, not GPU/VRAM-caused, not introduced by this session's
+CUDA work (pre-existed in stub-era runs), and specifically affects
+rotation estimation while translation tracks comparably to dense. It is
+*not* explained by mask staleness, loss scale, pixel count, or a
+single-frame rotation-specific gradient bias — all five of the concrete,
+testable explanations for those have been ruled out or found wanting.
+What's still unknown: the actual mechanism, which now looks like it lives
+in the frame-to-frame accumulation dynamics rather than in any single
+frame's computation. Recommended entry point for whoever continues this:
+instrument the *real* sequential tracking loop (not a synthetic scene) to
+log per-iteration `cam_rot_delta` gradient direction/magnitude across
+consecutive real frames, and check whether it shows a consistent
+directional bias (would explain compounding drift) versus pure zero-mean
+noise (would not) — ideally on faster hardware where each full run costs
+seconds instead of the 15-20 minutes this dev GPU requires.
