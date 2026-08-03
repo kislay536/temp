@@ -1643,3 +1643,50 @@ hand off: the diagnostic tooling built tonight (`SPLATONIC_DEBUG_ATE`,
 `tracking_flip_ratio`, `tracking_reanchor_period`/`tracking_reanchor_
 block`) makes any of the three fix directions above cheap to prototype
 whenever the roadmap owner decides which is worth pursuing.
+
+### Third fix direction implemented: constant-angular-velocity motion prior (pending full-sequence validation)
+
+Of the three directions left open above, larger sample size was already
+falsified (hypothesis 3, `k=4`) and loop closure/bundle adjustment is out
+of scope as a quick patch. Implemented the remaining one: **temporal
+smoothing on the rotation estimate itself**, i.e. a constant-angular-
+velocity motion prior — a standard VO/SLAM technique for exactly this
+situation (a noisy per-frame measurement with no cross-frame consensus
+mechanism).
+
+**Mechanism:** added `SO3_log` (`pose_utils.py`, inverse of the existing
+`SO3_exp`, standard Rodrigues log map, same skew-symmetric convention).
+In `slam_frontend.py`'s `tracking()`, gated by a new
+`tracking_motion_prior_alpha` config value (default `0.0`, exact prior
+behavior, no-op unless a config sets it): after the per-frame photometric
+optimization converges, compute the *predicted* inter-frame rotation step
+under constant angular velocity (the axis-angle log of the rotation
+between frame `i-2` and `i-1`, i.e. "whatever rotation just happened,
+assume it keeps happening"), and the *observed* inter-frame rotation step
+(log of `R_start^T @ R_optimized` for the current frame). Fuse the two by
+linear interpolation in axis-angle space —
+`omega_fused = (1-alpha)*omega_obs + alpha*omega_pred` — and re-exponentiate
+to get the frame's final rotation. This is a shrinkage estimator: it
+reduces the effective variance of the accepted per-frame rotation without
+discarding the current frame's photometric information entirely (unlike
+periodic dense re-anchoring, which replaces the estimate outright for
+whole blocks of frames and, per the previous section, doesn't fix the
+aggregate metric).
+
+Three configs added for a sweep:
+`fr1_desk_splatonic_motionprior_030.yaml` (alpha=0.3),
+`fr1_desk_splatonic_motionprior.yaml` (alpha=0.5),
+`fr1_desk_splatonic_motionprior_075.yaml` (alpha=0.75).
+
+**Verified so far (dev 4GB GPU):** `SO3_log`/`SO3_exp` round-trip to
+<1e-5 error on random rotations plus the near-zero-angle edge case;
+`alpha=0.5` smoke-tested for 19 real frames of TUM fr1_desk with
+`SPLATONIC_DEBUG_ATE=1` — no crashes, no dtype errors, plausible DBG_ATE
+values throughout. **Not yet verified:** whether this actually reduces
+the full-sequence RMSE ATE — 19 frames is far too few to see the drift
+this is meant to fix (the hard segment where sparse-baseline rotation
+error explodes doesn't start until roughly frame 100-150), and the dev
+GPU's 4GB/slow iteration rate makes a full ~300+ frame comparative run
+impractical locally. Full-sequence validation (dense baseline, sparse
+baseline, and the three alpha values) is planned on Kaggle's free T4
+GPU quota — see `port/kaggle_validate.ipynb`.
