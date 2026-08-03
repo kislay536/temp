@@ -127,6 +127,95 @@ class FrontEnd(mp.Process):
         self.request_init(cur_frame_idx, viewpoint, depth_map)
         self.reset = False
 
+    def _debug_gradient_at_truth(
+        self, cur_frame_idx, viewpoint, pixel_range, pixel_coords, pixel_mask,
+    ):
+        """
+        One-off diagnostic: set the camera to the GROUND-TRUTH pose for this
+        frame, quickly fit exposure only (20 iters) at that pose, then
+        compute dL/d(cam_rot_delta) evaluated AT theta=0 (i.e. exactly at
+        truth) under the dense loss and under the sparse loss. If the true
+        pose is a genuine local minimum, this gradient should be ~0; a
+        non-zero gradient means the loss surface points AWAY from truth
+        even when starting exactly there. Restores real state before
+        returning. See port/STATUS.md section 9.
+        """
+        R_real = viewpoint.R.detach().clone()
+        T_real = viewpoint.T.detach().clone()
+        ea_real = viewpoint.exposure_a.detach().clone()
+        eb_real = viewpoint.exposure_b.detach().clone()
+
+        R_gt = viewpoint.R_gt.detach().to(dtype=R_real.dtype)
+        T_gt = viewpoint.T_gt.detach().to(dtype=T_real.dtype)
+
+        def grad_at_truth(use_sparse):
+            viewpoint.update_RT(R_gt, T_gt)
+            with torch.no_grad():
+                viewpoint.cam_rot_delta.data.fill_(0)
+                viewpoint.cam_trans_delta.data.fill_(0)
+                viewpoint.exposure_a.data.fill_(0)
+                viewpoint.exposure_b.data.fill_(0)
+            # fit exposure only, 20 iters, at the true pose
+            eopt = torch.optim.Adam([viewpoint.exposure_a, viewpoint.exposure_b], lr=0.05)
+            for _ in range(20):
+                render_pkg = render(
+                    viewpoint, self.gaussians, self.pipeline_params, self.background,
+                    pixel_range=pixel_range if use_sparse else None,
+                    pixel_coords=pixel_coords if use_sparse else None,
+                    use_track_rasterizer=use_sparse,
+                )
+                image, depth, opacity = render_pkg["render"], render_pkg["depth"], render_pkg["opacity"]
+                eopt.zero_grad()
+                if use_sparse:
+                    loss = get_loss_tracking_sparse(
+                        self.config, image, depth, opacity, viewpoint, pixel_mask=pixel_mask
+                    )
+                else:
+                    loss = get_loss_tracking(self.config, image, depth, opacity, viewpoint)
+                loss.backward()
+                eopt.step()
+            # now compute dL/d(cam_rot_delta) at theta=0 with exposure fixed at its fitted value
+            with torch.no_grad():
+                viewpoint.cam_rot_delta.data.fill_(0)
+                viewpoint.cam_trans_delta.data.fill_(0)
+            render_pkg = render(
+                viewpoint, self.gaussians, self.pipeline_params, self.background,
+                pixel_range=pixel_range if use_sparse else None,
+                pixel_coords=pixel_coords if use_sparse else None,
+                use_track_rasterizer=use_sparse,
+            )
+            image, depth, opacity = render_pkg["render"], render_pkg["depth"], render_pkg["opacity"]
+            if use_sparse:
+                loss = get_loss_tracking_sparse(
+                    self.config, image, depth, opacity, viewpoint, pixel_mask=pixel_mask
+                )
+            else:
+                loss = get_loss_tracking(self.config, image, depth, opacity, viewpoint)
+            loss.backward()
+            g = viewpoint.cam_rot_delta.grad.detach().clone()
+            viewpoint.cam_rot_delta.grad = None
+            return g
+
+        g_dense = grad_at_truth(use_sparse=False)
+        g_sparse = grad_at_truth(use_sparse=True)
+        print(
+            f"DBG_GRAD_AT_TRUTH frame={cur_frame_idx} "
+            f"dense_grad={g_dense.tolist()} dense_norm={float(g_dense.norm().cpu()):.6f} "
+            f"sparse_grad={g_sparse.tolist()} sparse_norm={float(g_sparse.norm().cpu()):.6f}",
+            flush=True,
+        )
+
+        viewpoint.update_RT(R_real, T_real)
+        with torch.no_grad():
+            viewpoint.cam_rot_delta.data.fill_(0)
+            viewpoint.cam_trans_delta.data.fill_(0)
+            viewpoint.exposure_a.data.copy_(ea_real)
+            viewpoint.exposure_b.data.copy_(eb_real)
+            if viewpoint.cam_rot_delta.grad is not None:
+                viewpoint.cam_rot_delta.grad = None
+            if viewpoint.cam_trans_delta.grad is not None:
+                viewpoint.cam_trans_delta.grad = None
+
     def _debug_isolate_rotation(
         self, cur_frame_idx, viewpoint, R_start, T_start,
         exposure_a_start, exposure_b_start, pixel_range, pixel_coords, pixel_mask,
@@ -369,11 +458,16 @@ class FrontEnd(mp.Process):
                     nx = (xs.float() - cx) / (W_ / 2.0)
                     spread = torch.sqrt(ny**2 + nx**2).mean()
                     spread_str = f"{float(spread.cpu()):.4f}"
+            ea_end = float(viewpoint.exposure_a.detach().cpu().item())
+            eb_end = float(viewpoint.exposure_b.detach().cpu().item())
+            ea_start_v = float(exposure_a_start.cpu().item())
+            eb_start_v = float(exposure_b_start.cpu().item())
             print(
                 f"DBG_ATE frame={cur_frame_idx} t_err={t_err_norm:.4f} ang_err_deg={ang_err_deg:.3f} "
                 f"true_step_deg={true_step_deg:.3f} est_step_deg={est_step_deg:.3f} "
                 f"n_iters={tracking_itr + 1} converged={converged} depth_err={depth_err_str} "
-                f"sample_spread={spread_str}",
+                f"sample_spread={spread_str} exp_a={ea_end:.4f} exp_b={eb_end:.4f} "
+                f"exp_a_delta={ea_end - ea_start_v:.4f} exp_b_delta={eb_end - eb_start_v:.4f}",
                 flush=True,
             )
             isolate_frames_str = os.environ.get("SPLATONIC_DEBUG_ISOLATE_FRAME")
@@ -385,6 +479,14 @@ class FrontEnd(mp.Process):
                     cur_frame_idx, viewpoint, R_start, T_start,
                     exposure_a_start, exposure_b_start, pixel_range, pixel_coords, pixel_mask,
                     true_step_deg,
+                )
+            grad_truth_frames_str = os.environ.get("SPLATONIC_DEBUG_GRAD_TRUTH_FRAME")
+            grad_truth_frames = (
+                {int(x) for x in grad_truth_frames_str.split(",")} if grad_truth_frames_str else set()
+            )
+            if cur_frame_idx in grad_truth_frames and pixel_mask is not None:
+                self._debug_gradient_at_truth(
+                    cur_frame_idx, viewpoint, pixel_range, pixel_coords, pixel_mask
                 )
         return render_pkg
 

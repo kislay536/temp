@@ -1536,3 +1536,110 @@ time (defeating the port's purpose) or the deeper root-cause
 investigation this session set aside. That decision — and whether it's
 worth pursuing further tonight vs. on the A100 — is for the roadmap
 owner.
+
+### Root cause found: high-variance per-frame gradient estimation, not a discrete bug
+
+User asked to keep root-causing. Two more angles tested — the second one
+completes the picture.
+
+**Exposure-compensation coupling — falsified.** Logged
+`exposure_a`/`exposure_b`'s per-frame delta (`exp_a_delta`/`exp_b_delta`
+in `SPLATONIC_DEBUG_ATE`'s output; note each `Camera` starts every frame
+fresh at `exposure_a=exposure_b=0` — exposure is *not* warm-started
+across frames). Correlation with the rotation overshoot ratio over 328
+frames: weakly negative for both (`|exp_a_delta|`: r=-0.22;
+`|exp_b_delta|`: r=-0.08), and `|exp_a_delta|`'s magnitude doesn't track
+the overshoot escalation (0.32 early → 0.29 late, while overshoot nearly
+doubles). Rules out exposure-compensation coupling as the driver.
+
+**Gradient-at-the-true-pose — decisive, and reconciles everything.**
+Added `_debug_isolate_rotation`'s sibling, `_debug_gradient_at_truth`
+(`SPLATONIC_DEBUG_GRAD_TRUTH_FRAME=<frames>`): set the camera to the
+*exact ground-truth pose* for a frame, fit exposure only (20 iters) at
+that pose, then compute `dL/d(cam_rot_delta)` evaluated at theta=0 (i.e.
+exactly at truth) under dense and sparse separately — no optimization,
+just one gradient each. If truth were a genuine local minimum, this
+should be ~0. Result across 8 frames:
+
+| Frame | \|dense\| | \|sparse\| | ratio | cos(dense, sparse) |
+|---|---|---|---|---|
+| 50 | 8.37 | 16.23 | 1.94 | 0.968 |
+| 100 | 2.75 | 15.05 | 5.47 | 0.982 |
+| 150 | 2.31 | 1.00 | 0.43 | **-0.546** |
+| 200 | 1.86 | 2.27 | 1.22 | 0.678 |
+| 230 | 1.95 | 1.08 | 0.55 | **-0.651** |
+| 260 | 1.85 | 7.44 | 4.01 | 0.988 |
+| 290 | 1.22 | 7.44 | 6.07 | 0.869 |
+| 320 | 2.03 | 3.53 | 1.74 | 0.378 |
+
+Two things jump out. First, **dense's own gradient at truth is never
+exactly zero either** (magnitude 1.2-8.4 across frames) — the true pose
+isn't a perfect minimum for either loss, most likely because the
+Gaussian map itself has reconstruction error, and/or rotation-exposure
+coupling means a rotation-only gradient at the jointly-fit-exposure point
+isn't expected to vanish exactly. Second, and decisively: **sparse's
+gradient at truth is a high-variance, not a systematically-biased,
+estimate of dense's.** At most frames (50, 100, 260, 290) it points in
+nearly the same direction as dense's (cosine 0.87-0.99) but amplified
+1.9x-6.1x in magnitude. At two frames (150, 230) it points in the
+*opposite* direction (cosine -0.55, -0.65) — sparse doesn't merely
+amplify dense's small bias there, it flips it. This variance (not a
+single fixed displacement) is the real signature: it matches finding 5's
+synthetic-scene result showing individual sparse gradient draws are
+nearly uncorrelated with the true direction (cosine ≈0.04±0.65) even
+though the *average* over many draws is reasonably aligned.
+
+**This reconciles every prior finding into one coherent story:**
+sparse tracking's rotation estimation is a **fundamentally high-variance
+Monte-Carlo estimate** of the true (dense) photometric gradient — not
+biased in one fixed direction, but noisy enough that any single frame's
+optimum can land significantly off from truth, sometimes overshooting
+in roughly the right direction (most frames) and sometimes in a
+qualitatively different one (a substantial minority). Dense's
+full-image loss is deterministic and low-variance by comparison, so it
+reliably re-finds the true minimum every frame. Because frames chain
+(`viewpoint.update_RT(prev.R, prev.T)`, `slam_frontend.py:132`) with no
+loop closure or bundle adjustment to correct accumulated error, these
+per-frame estimation errors don't cancel — they compound into a random
+walk that occasionally partially self-corrects (matching the observed
+"rises, peaks, partially recovers" shape) but never converges back to
+truth on its own. This is why per-iteration resampling didn't help
+(resampling doesn't reduce per-draw variance, it just changes which
+particular noisy draw you get), why 4x more pixels didn't help
+(variance reduction from more samples was evidently not enough at that
+scale to change the qualitative picture), and why forcing dense loss for
+a contiguous block reliably fixes it (dense's low-variance gradient
+correctly re-finds truth every single frame it's used, for as long as
+it's used).
+
+**This is not a discrete, single-line-of-code bug.** It is a genuine
+statistical property of using a very small (~600-4800), independently-
+resampled pixel subset to estimate a 3-DOF rotation via photometric
+gradient descent, with no cross-frame consensus/correction mechanism.
+Reducing it would require either: increasing the effective sample size
+enough to meaningfully shrink per-frame gradient variance (a real
+tension with the sparsity that gives SPLATONIC its speed advantage),
+adding some form of temporal smoothing/regularization on the pose
+estimate itself (e.g. a motion prior or a Kalman-style filter over
+`cam_rot_delta` across frames, damping single-frame outlier estimates),
+or a proper loop-closure/global bundle adjustment step (the standard
+SLAM answer to unbounded drift, and arguably the "correct" fix
+regardless of this specific investigation, since MonoGS's monocular
+tracking has no such mechanism even in dense mode — dense mode simply
+has such low per-frame variance that it rarely matters over one TUM
+sequence).
+
+**Final status:** root cause is understood and well-evidenced (not
+just "sparse pixels are less robust," but a specific, demonstrated
+high-variance-gradient-estimation mechanism with a coherent explanation
+for every earlier finding). No fix has been found and validated tonight
+— periodic dense re-anchoring provably doesn't fix the aggregate metric,
+and a proper fix (temporal smoothing, adaptive sampling, or loop closure)
+is real engineering work beyond a quick patch. This is the right point to
+hand off: the diagnostic tooling built tonight (`SPLATONIC_DEBUG_ATE`,
+`SPLATONIC_DEBUG_FORCE_DENSE_FRAMES`, `SPLATONIC_DEBUG_GRAD_TRUTH_FRAME`,
+`SPLATONIC_DEBUG_TRACK_K`, `_debug_isolate_rotation`,
+`_debug_gradient_at_truth`, `generate_random_mask_k`,
+`tracking_flip_ratio`, `tracking_reanchor_period`/`tracking_reanchor_
+block`) makes any of the three fix directions above cheap to prototype
+whenever the roadmap owner decides which is worth pursuing.
