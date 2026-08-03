@@ -1690,3 +1690,58 @@ GPU's 4GB/slow iteration rate makes a full ~300+ frame comparative run
 impractical locally. Full-sequence validation (dense baseline, sparse
 baseline, and the three alpha values) is planned on Kaggle's free T4
 GPU quota — see `port/kaggle_validate.ipynb`.
+
+### Kaggle notebook build failure: root-caused and fixed entirely on the local GPU
+
+First real Kaggle run failed to build `diff-gaussian-rasterization` with no
+usable error (`pip`'s generic "did not run successfully / No available
+output", swallowed by an `-q` flag). Rather than iterate against Kaggle's
+GPU-hour budget one guess at a time, reproduced Kaggle's exact reported
+software stack — torch 2.10.0+cu128, Python 3.12 — in a fresh local conda
+env (`kaggle_repro`) on the dev machine's real GPU, and root-caused it there.
+Found three genuine, independent issues, all confirmed and fixed locally:
+
+1. **Torch silently upgraded by unrelated pip installs.** The notebook's
+   "Python dependencies" cell installs `lpips`, which pulls in `torchvision`
+   with no version pin — pip's resolver picked the latest `torchvision`,
+   which demanded the latest `torch`, silently upgrading the environment
+   from torch 2.10.0+cu128 to 2.13.0+cu130 (reproduced exactly, byte-for-byte
+   this sequence, locally). Building the CUDA extensions afterward then hits
+   a hard `nvcc`/`torch.version.cuda` **major**-version mismatch
+   (`RuntimeError: The detected CUDA version (12.0) mismatches the version
+   that was used to compile PyTorch (13.0)`) — this is almost certainly what
+   the opaque Kaggle failure actually was. **Fix:** the dependencies cell now
+   writes a pip constraints file pinning whatever torch is currently
+   installed before running any other install, and a follow-up cell asserts
+   torch didn't move.
+2. **`simple-knn` breaks under an editable install on Python 3.12.** Its
+   upstream `setup.py` (unlike the other three rasterizer packages) doesn't
+   declare `packages=[...]` explicitly — it relies on `simple_knn/` being
+   auto-discovered as an implicit namespace package (no `__init__.py`, just
+   the compiled `_C*.so`). `pip install -e .` reports success, but
+   `import simple_knn` then raises `ModuleNotFoundError` — the PEP 660
+   editable-install finder's `_find_spec` only checks for `__init__.py` or a
+   same-named file with a module suffix, neither of which exists here, and
+   silently fails to resolve the package. Confirmed locally: identical
+   source, only difference is `-e .` vs `.`, and non-editable installs
+   without error. **Fix:** `simple-knn` is now installed non-editably (we
+   never edit this vendored dependency anyway, so this is strictly correct,
+   not a workaround).
+3. **`np.unicode_` was removed in NumPy 2.0.** A genuine source bug,
+   independent of the Kaggle build issue above: `utils/dataset.py`'s
+   `TUMParser.parse_list` used `dtype=np.unicode_`, which any modern NumPy
+   2.x install (which Python 3.12 environments — including Kaggle's — ship
+   by default) raises `AttributeError` on at the very first frame of dataset
+   loading. **Fixed:** changed to `np.str_`.
+
+After all three fixes, ran the actual `slam.py --eval` pipeline (not just
+the isolated builds) in the local `kaggle_repro` env — torch 2.10.0+cu128,
+Python 3.12, all four CUDA extensions built from scratch against that
+exact stack — for 30 real TUM `fr1_desk` frames with
+`SPLATONIC_DEBUG_ATE=1`: runs cleanly, no crashes, plausible DBG_ATE
+values throughout. This is the same validation depth as the original
+19-frame smoke test on the dev `gslam` env, just now also confirmed against
+the newer software stack Kaggle actually reported. `port/kaggle_validate.ipynb`
+should now build and run end-to-end on Kaggle without further guessing —
+next step is still the actual multi-hour, full-sequence comparative run,
+which only Kaggle's GPU-hours can provide.
