@@ -13,7 +13,7 @@ from utils.eval_utils import eval_ate, save_gaussians
 from utils.logging_utils import Log
 from utils.mask_utils import generate_random_mask, generate_random_mask_k, get_pixel_info
 from utils.multiprocessing_utils import clone_obj
-from utils.pose_utils import update_pose
+from utils.pose_utils import SO3_exp, SO3_log, update_pose
 from utils.slam_utils import get_loss_tracking, get_loss_tracking_sparse, get_median_depth
 
 
@@ -293,6 +293,22 @@ class FrontEnd(mp.Process):
     def tracking(self, cur_frame_idx, viewpoint):
         prev = self.cameras[cur_frame_idx - self.use_every_n_frames]
         viewpoint.update_RT(prev.R, prev.T)
+
+        # Constant-angular-velocity motion prior: root-caused in
+        # port/STATUS.md section 9 -- sparse tracking's per-frame rotation
+        # gradient is a high-variance (not fixed-bias) Monte-Carlo estimate
+        # of the true photometric gradient, and with no loop closure this
+        # noise compounds frame-to-frame into unbounded rotation drift.
+        # Fusing the noisy per-frame estimate with a lower-variance
+        # constant-velocity prediction (shrinkage) reduces that variance
+        # without discarding the current frame's information entirely.
+        # Disabled by default (alpha=0, exact prior behavior).
+        tracking_motion_prior_alpha = self.config["Training"].get(
+            "tracking_motion_prior_alpha", 0.0
+        )
+        if tracking_motion_prior_alpha > 0:
+            R_start_prior = viewpoint.R.detach().clone()
+
         if os.environ.get("SPLATONIC_DEBUG_ATE"):
             R_start = viewpoint.R.detach().clone()
             T_start = viewpoint.T.detach().clone()
@@ -419,6 +435,23 @@ class FrontEnd(mp.Process):
                 )
             if converged:
                 break
+
+        if tracking_motion_prior_alpha > 0:
+            prev_prev = self.cameras.get(cur_frame_idx - 2 * self.use_every_n_frames)
+            if prev_prev is not None:
+                dtype = R_start_prior.dtype
+                R_pred_rel = (
+                    prev_prev.R.detach().to(dtype=dtype).T
+                    @ prev.R.detach().to(dtype=dtype)
+                )
+                omega_pred = SO3_log(R_pred_rel)
+                R_obs_rel = R_start_prior.T @ viewpoint.R.detach().to(dtype=dtype)
+                omega_obs = SO3_log(R_obs_rel)
+                omega_fused = (
+                    1 - tracking_motion_prior_alpha
+                ) * omega_obs + tracking_motion_prior_alpha * omega_pred
+                R_fused = R_start_prior @ SO3_exp(omega_fused)
+                viewpoint.update_RT(R_fused, viewpoint.T)
 
         self.median_depth = get_median_depth(depth, opacity)
         if os.environ.get("SPLATONIC_DEBUG_ATE"):

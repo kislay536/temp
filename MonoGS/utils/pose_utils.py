@@ -58,6 +58,21 @@ def V(theta):
     return V
 
 
+def SO3_log(R):
+    """Inverse of SO3_exp: rotation matrix -> axis-angle vector, using the
+    same skew_sym_mat convention (hat(w) @ v == w cross v)."""
+    dtype = R.dtype
+    device = R.device
+    angle = torch.arccos(torch.clamp((torch.trace(R) - 1) / 2, -1, 1))
+    diff = R - R.T
+    if angle < 1e-5:
+        coeff = 0.5
+    else:
+        coeff = angle / (2 * torch.sin(angle))
+    w = coeff * torch.stack([diff[2, 1], diff[0, 2], diff[1, 0]])
+    return w.to(device=device, dtype=dtype)
+
+
 def SE3_exp(tau):
     dtype = tau.dtype
     device = tau.device

@@ -1,0 +1,5 @@
+inherit_from: "configs/mono/tum/fr1_desk.yaml"
+
+Training:
+  use_splatonic: true
+  tracking_motion_prior_alpha: 0.75
