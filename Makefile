@@ -25,9 +25,16 @@ DEBUG_ENV   ?=
 ROOT        := $(shell pwd)
 CONSTRAINTS := $(ROOT)/constraints.txt
 
+# Auto-detect conda's base install dir, in priority order:
+#   1. `conda info --base` (conda already on PATH, e.g. via `module load`)
+#   2. this repo's own self-installed copy (`make install-conda`)
+#   3. common cluster-wide install locations
+#   4. $HOME/miniconda3 (last resort guess, may not exist)
+# Override explicitly if none of these match your cluster, e.g.:
+#   make env CONDA_BASE=/opt/conda
 CONDA_BASE  := $(shell conda info --base 2>/dev/null)
 ifeq ($(CONDA_BASE),)
-CONDA_BASE  := $(HOME)/miniconda3
+CONDA_BASE  := $(shell for d in $(ROOT)/.conda /opt/conda /opt/miniconda3 /usr/local/miniconda3 $(HOME)/miniconda3 $(HOME)/anaconda3; do [ -f "$$d/etc/profile.d/conda.sh" ] && echo "$$d" && break; done)
 endif
 CONDA_ACTIVATE = source $(CONDA_BASE)/etc/profile.d/conda.sh && conda activate $(CONDA_ENV)
 
@@ -36,7 +43,7 @@ SHELL := /bin/bash
 .ONESHELL:
 .DEFAULT_GOAL := help
 
-.PHONY: help doctor env constraints fix-numpy simple-knn \
+.PHONY: help doctor install-conda env constraints fix-numpy simple-knn \
         deps-monogs build-monogs build-splatam build-splatonic build-all \
         verify-monogs checkpoint-a \
         data-splatam data-splatonic data-monogs data-all \
@@ -51,6 +58,7 @@ SHELL := /bin/bash
 help:
 	@echo "Setup:"
 	@echo "  doctor               - check nvidia-smi / nvcc / conda are visible"
+	@echo "  install-conda        - no conda on this cluster? install one locally into ./.conda (no sudo)"
 	@echo "  env                  - create conda env '$(CONDA_ENV)' (python $(PY_VERSION), torch/$(CUDA_TAG))"
 	@echo "  constraints          - write constraints.txt pinning torch so nothing can silently upgrade it"
 	@echo "  fix-numpy            - patch np.unicode_ -> np.str_ in SplaTAM/SPLATONIC TUM loaders (NumPy 2.0)"
@@ -93,9 +101,33 @@ help:
 
 doctor:
 	@echo "=== nvidia-smi ==="; nvidia-smi || echo "!! nvidia-smi not found"
-	@echo "=== nvcc --version ==="; nvcc --version || echo "!! nvcc not found (CUDA toolkit not on PATH)"
-	@echo "=== conda ==="; conda --version || echo "!! conda not found"
-	@echo "=== CONDA_BASE resolved to ==="; echo "$(CONDA_BASE)"
+	@echo "=== nvcc --version ==="; nvcc --version || echo "!! nvcc not found (CUDA toolkit not on PATH -- may still be fine, torch ships its own CUDA runtime)"
+	@echo "=== conda ==="
+	if command -v conda >/dev/null 2>&1; then
+		conda --version
+	else
+		echo "!! conda not on PATH. Checked common cluster locations too, resolved CONDA_BASE below."
+		echo "   If your cluster uses environment modules, try:  module avail 2>&1 | grep -i conda"
+		echo "   Otherwise run:  make install-conda   (installs into $(ROOT)/.conda, no sudo needed)"
+	fi
+	@echo "=== CONDA_BASE resolved to ==="
+	if [ -n "$(CONDA_BASE)" ] && [ -f "$(CONDA_BASE)/etc/profile.d/conda.sh" ]; then
+		echo "$(CONDA_BASE)  (looks valid)"
+	else
+		echo "$(CONDA_BASE)  !! not found / no conda.sh here -- run 'make install-conda' or pass CONDA_BASE=... explicitly"
+	fi
+
+install-conda:
+	@if [ -f "$(ROOT)/.conda/etc/profile.d/conda.sh" ]; then
+		echo "already installed at $(ROOT)/.conda -- nothing to do"
+	else
+		echo "downloading Miniconda3 (Linux x86_64) into $(ROOT)/.conda ..."
+		tmp=$$(mktemp -d)
+		curl -fsSL -o "$$tmp/miniconda.sh" https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+		bash "$$tmp/miniconda.sh" -b -p "$(ROOT)/.conda"
+		rm -rf "$$tmp"
+		echo "installed. Re-run 'make doctor' to confirm CONDA_BASE now resolves to $(ROOT)/.conda"
+	fi
 
 env:
 	conda create -n $(CONDA_ENV) python=$(PY_VERSION) -y
