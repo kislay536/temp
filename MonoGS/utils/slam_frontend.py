@@ -11,7 +11,12 @@ from gui import gui_utils
 from utils.camera_utils import Camera
 from utils.eval_utils import eval_ate, save_gaussians
 from utils.logging_utils import Log
-from utils.mask_utils import generate_random_mask, generate_random_mask_k, get_pixel_info
+from utils.mask_utils import (
+    adaptive_random_sampling,
+    generate_random_mask,
+    generate_random_mask_k,
+    get_pixel_info,
+)
 from utils.multiprocessing_utils import clone_obj
 from utils.pose_utils import SO3_exp, SO3_log, update_pose
 from utils.slam_utils import get_loss_tracking, get_loss_tracking_sparse, get_median_depth
@@ -358,7 +363,35 @@ class FrontEnd(mp.Process):
         if use_splatonic:
             H, W = viewpoint.image_height, viewpoint.image_width
             debug_k = int(os.environ.get("SPLATONIC_DEBUG_TRACK_K", "1"))
-            if debug_k > 1:
+            if os.environ.get("SPLATONIC_DEBUG_TRACK_ADAPTIVE"):
+                # EXPERIMENTAL: mapping's sparse path already samples pixels
+                # weighted by image-gradient magnitude (adaptive_random_
+                # sampling, mask_utils.py), concentrating the pixel budget on
+                # informative (edge/texture) regions instead of uniformly at
+                # random. Tracking has never tried this -- generate_random_
+                # mask/_k both sample uniformly. Per port/STATUS.md section 9,
+                # the diagnosed root cause is that sparse tracking's rotation
+                # gradient is a high-variance Monte-Carlo estimate of the
+                # true (dense) gradient, and naively increasing the *uniform*
+                # sample count 4x (SPLATONIC_DEBUG_TRACK_K=4) did NOT reduce
+                # that variance -- consistent with low-gradient/flat pixels
+                # contributing near-zero information regardless of count, so
+                # uniform sampling wastes budget on them. Concentrating the
+                # SAME pixel budget on high-gradient pixels is a different,
+                # untried lever: standard variance-reduction wisdom from
+                # direct/photometric VO (e.g. DSO's gradient-based point
+                # selection), not just "more of the same" samples. Same tile
+                # count/budget as the uniform baseline (one nominal sample
+                # per tile), routed through the same get_pixel_info() tile-
+                # sorting mapping's own sparse path already uses -- the CUDA
+                # kernels only require pixel_range/pixel_coords to be tile-
+                # sorted, not exactly one sample per tile (confirmed: mapping
+                # already relies on this with adaptive, non-uniform counts).
+                num_tiles = ((H + tile_size - 1) // tile_size) * ((W + tile_size - 1) // tile_size)
+                gt_img_for_mask = viewpoint.original_image.cuda()
+                pixel_mask = adaptive_random_sampling(gt_img_for_mask, num_tiles)
+                pixel_range, pixel_coords = get_pixel_info(pixel_mask, tile_size=tile_size)
+            elif debug_k > 1:
                 pixel_mask, pixel_range, pixel_coords = generate_random_mask_k(
                     (H, W), tile_size=tile_size, k=debug_k, device="cuda"
                 )
@@ -452,6 +485,27 @@ class FrontEnd(mp.Process):
                 ) * omega_obs + tracking_motion_prior_alpha * omega_pred
                 R_fused = R_start_prior @ SO3_exp(omega_fused)
                 viewpoint.update_RT(R_fused, viewpoint.T)
+                # render_pkg/depth/opacity above are from the LAST tracking
+                # iteration's pose, i.e. BEFORE this fusion step -- using
+                # them below (median_depth, and the render_pkg this function
+                # returns, later consumed for n_touched-based visibility and
+                # keyframe depth seeding) would describe a different camera
+                # state than the pose we just committed to. Re-render once
+                # (no grad needed, pose is final for this frame) so every
+                # downstream consumer sees a render consistent with the
+                # actual final, fused pose.
+                with torch.no_grad():
+                    render_pkg = render(
+                        viewpoint, self.gaussians, self.pipeline_params, self.background,
+                        pixel_range=pixel_range,
+                        pixel_coords=pixel_coords,
+                        use_track_rasterizer=use_splatonic,
+                    )
+                    image, depth, opacity = (
+                        render_pkg["render"],
+                        render_pkg["depth"],
+                        render_pkg["opacity"],
+                    )
 
         self.median_depth = get_median_depth(depth, opacity)
         if os.environ.get("SPLATONIC_DEBUG_ATE"):

@@ -87,7 +87,110 @@ def verify_cuda_home(cuda_home, arch, workdir):
     if r.returncode != 0 or "OK" not in r.stdout:
         return False, f"compiled but run failed (exit {r.returncode}):\nstdout: {r.stdout}\nstderr: {r.stderr}"
 
-    return True, "compiled and ran correctly on the GPU"
+    ok, detail = verify_torch_extension_build(cuda_home, arch, workdir)
+    if not ok:
+        return False, detail
+
+    return True, "compiled+ran a raw .cu AND a torch CUDA extension correctly on the GPU"
+
+
+TORCH_EXT_CU = """
+#include <torch/extension.h>
+
+__global__ void add_one_kernel(float* x, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) x[i] += 1.0f;
+}
+
+torch::Tensor add_one(torch::Tensor x) {
+    int n = x.numel();
+    add_one_kernel<<<(n + 255) / 256, 256>>>(x.data_ptr<float>(), n);
+    return x;
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("add_one", &add_one, "add one (CUDA)");
+}
+"""
+
+TORCH_EXT_SETUP_PY = """
+from setuptools import setup
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+setup(
+    name="splatonic_cuda_home_probe",
+    ext_modules=[CUDAExtension("splatonic_cuda_home_probe", ["verify_ext.cu"])],
+    cmdclass={"build_ext": BuildExtension},
+)
+"""
+
+TORCH_EXT_DRIVER = """
+import sys, torch
+sys.path.insert(0, sys.argv[1])
+import splatonic_cuda_home_probe as ext
+x = torch.ones(8, device="cuda")
+y = ext.add_one(x)
+assert torch.allclose(y.cpu(), torch.full((8,), 2.0)), y
+print("TORCH_EXT_OK")
+"""
+
+
+def verify_torch_extension_build(cuda_home, arch, workdir):
+    """Raw nvcc can compile fine while still being unusable for building
+    actual PyTorch CUDA extensions. torch.utils.cpp_extension.BuildExtension
+    (used by every real setup.py-based CUDA extension build in this repo --
+    simple-knn, diff-gaussian-rasterization, track/map-rasterization, and
+    SplaTAM/SPLATONIC's own extensions) applies its own compiler-
+    compatibility gate (e.g. CUDA-version-vs-gcc-version) inside
+    build_extensions() that a bare nvcc invocation never triggers, and that
+    torch.utils.cpp_extension.load()'s JIT path *also* never triggers (JIT
+    compiles straight to ninja, bypassing setuptools' build_ext entirely --
+    verified empirically: load() silently succeeds on a CUDA_HOME that the
+    real `pip install --no-build-isolation .` path rejects outright). So we
+    replicate the REAL path here: an actual `setup.py build_ext` using
+    CUDAExtension+BuildExtension, the same classes every real build in this
+    repo uses. A system CUDA_HOME can pass verify_cuda_home()'s raw compile
+    above and still be correctly rejected here.
+    """
+    if shutil.which("ninja") is None:
+        r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "ninja"],
+                            capture_output=True, text=True)
+        if r.returncode != 0:
+            return False, f"could not install ninja (needed to verify torch extension builds): {r.stderr}"
+
+    ext_dir = os.path.join(workdir, "torch_ext_probe")
+    if os.path.isdir(ext_dir):
+        shutil.rmtree(ext_dir)
+    os.makedirs(ext_dir, exist_ok=True)
+    with open(os.path.join(ext_dir, "verify_ext.cu"), "w") as f:
+        f.write(TORCH_EXT_CU)
+    with open(os.path.join(ext_dir, "setup.py"), "w") as f:
+        f.write(TORCH_EXT_SETUP_PY)
+    with open(os.path.join(ext_dir, "driver.py"), "w") as f:
+        f.write(TORCH_EXT_DRIVER)
+
+    env = dict(os.environ)
+    env["CUDA_HOME"] = cuda_home
+    env["TORCH_CUDA_ARCH_LIST"] = arch
+    env["PATH"] = os.path.join(cuda_home, "bin") + os.pathsep + env.get("PATH", "")
+
+    r = subprocess.run(
+        [sys.executable, "setup.py", "build_ext", "--inplace"],
+        capture_output=True, text=True, cwd=ext_dir, env=env,
+    )
+    if r.returncode != 0:
+        return False, (f"nvcc compiles a raw .cu fine, but building an actual torch CUDA "
+                        f"extension the same way this repo's real packages do "
+                        f"(setup.py build_ext with BuildExtension) fails (exit {r.returncode}):\n"
+                        f"{r.stdout}\n{r.stderr}")
+
+    r = subprocess.run(
+        [sys.executable, "driver.py", ext_dir],
+        capture_output=True, text=True, cwd=ext_dir, env=env,
+    )
+    if r.returncode != 0 or "TORCH_EXT_OK" not in r.stdout:
+        return False, (f"torch CUDA extension built but failed to import/run "
+                        f"(exit {r.returncode}):\n{r.stdout}\n{r.stderr}")
+    return True, "torch CUDA extension build+run OK"
 
 
 def find_existing_candidates(root):
@@ -118,22 +221,35 @@ def cuda_tag_to_major_minor(cuda_tag):
     return digits[:-1], digits[-1]
 
 
-def pick_redist_version(pkg_name, major, minor):
+def _version_key(v):
+    try:
+        return tuple(int(p) for p in v.split("."))
+    except ValueError:
+        return (-1,)
+
+
+def list_pypi_versions(pkg_name):
     url = f"https://pypi.org/pypi/{pkg_name}/json"
     with urllib.request.urlopen(url, timeout=30) as resp:
         data = json.load(resp)
+    return [v for v in data["releases"].keys() if data["releases"][v]]
+
+
+def pick_redist_version(pkg_name, major, minor):
     prefix = f"{major}.{minor}."
-    versions = [v for v in data["releases"].keys() if v.startswith(prefix) and data["releases"][v]]
+    versions = [v for v in list_pypi_versions(pkg_name) if v.startswith(prefix)]
     if not versions:
         return None
-
-    def patch_num(v):
-        try:
-            return int(v.split(".")[-1])
-        except ValueError:
-            return -1
-    versions.sort(key=patch_num, reverse=True)
+    versions.sort(key=_version_key, reverse=True)
     return versions[0]
+
+
+def list_versions_for_major(pkg_name, major):
+    """All versions for a CUDA major line, e.g. every 12.x.y, newest first."""
+    prefix = f"{major}."
+    versions = [v for v in list_pypi_versions(pkg_name) if v.startswith(prefix)]
+    versions.sort(key=_version_key, reverse=True)
+    return versions
 
 
 def download(url, dest_path):
@@ -152,12 +268,15 @@ COMPONENTS = [
 ]
 
 
-def fetch_component(label, pip_pkg, redist_name, major, minor, toolkit_root, workdir):
-    log(f"    resolving {label} version via PyPI metadata for {pip_pkg} ...")
-    version = pick_redist_version(pip_pkg, major, minor)
-    if not version:
-        raise RuntimeError(f"no {major}.{minor}.x release of {pip_pkg} found on PyPI")
-    log(f"      -> {version}")
+def fetch_component(label, pip_pkg, redist_name, major, minor, toolkit_root, workdir, forced_version=None):
+    if forced_version:
+        version = forced_version
+    else:
+        log(f"    resolving {label} version via PyPI metadata for {pip_pkg} ...")
+        version = pick_redist_version(pip_pkg, major, minor)
+        if not version:
+            raise RuntimeError(f"no {major}.{minor}.x release of {pip_pkg} found on PyPI")
+        log(f"      -> {version}")
 
     dest = os.path.join(toolkit_root, f"{redist_name}-{version}")
     if os.path.isdir(dest) and os.listdir(dest):
@@ -194,6 +313,23 @@ def merge_symlinks(src_dir, dst_dir):
         os.symlink(os.path.join(src_dir, name), link)
 
 
+def build_merged_home(toolkit_root, name, nvcc_dir, cudart_dir, cccl_dir):
+    home = os.path.join(toolkit_root, name)
+    if os.path.isdir(home):
+        shutil.rmtree(home)
+    os.makedirs(home, exist_ok=True)
+    merge_symlinks(os.path.join(nvcc_dir, "bin"), os.path.join(home, "bin"))
+    nvvm_src = os.path.join(nvcc_dir, "nvvm")
+    nvvm_dst = os.path.join(home, "nvvm")
+    if os.path.isdir(nvvm_src) and not os.path.exists(nvvm_dst):
+        os.symlink(nvvm_src, nvvm_dst)
+    merge_symlinks(os.path.join(nvcc_dir, "include"), os.path.join(home, "include"))
+    merge_symlinks(os.path.join(cudart_dir, "include"), os.path.join(home, "include"))
+    merge_symlinks(os.path.join(cccl_dir, "include"), os.path.join(home, "include"))
+    merge_symlinks(os.path.join(cudart_dir, "lib"), os.path.join(home, "lib64"))
+    return home
+
+
 def self_heal(root, cuda_tag, arch, workdir):
     major, minor = cuda_tag_to_major_minor(cuda_tag)
     log(f"-- self-heal: no working nvcc found anywhere, fetching one for CUDA {major}.{minor} --")
@@ -205,36 +341,67 @@ def self_heal(root, cuda_tag, arch, workdir):
     os.makedirs(toolkit_root, exist_ok=True)
 
     dirs = {}
-    for i, (label, pip_pkg_tpl, redist_name) in enumerate(COMPONENTS, 1):
-        log(f"[{i}/{len(COMPONENTS) + 1}] fetching {label} ...")
+    for label, pip_pkg_tpl, redist_name in COMPONENTS:
+        if label == "nvcc":
+            continue  # resolved below, with retries -- everything else is fixed once
+        log(f"[fetching {label}] ...")
         pip_pkg = pip_pkg_tpl.format(major=major)
         try:
             dirs[label] = fetch_component(label, pip_pkg, redist_name, major, minor, toolkit_root, workdir)
         except Exception as e:
             return None, f"fetching {label} ({pip_pkg}) failed: {e}"
 
-    log(f"[{len(COMPONENTS) + 1}/{len(COMPONENTS) + 1}] merging into one CUDA_HOME ...")
-    home = os.path.join(toolkit_root, f"merged-{major}.{minor}")
-    os.makedirs(home, exist_ok=True)
-    merge_symlinks(os.path.join(dirs["nvcc"], "bin"), os.path.join(home, "bin"))
-    nvvm_src = os.path.join(dirs["nvcc"], "nvvm")
-    nvvm_dst = os.path.join(home, "nvvm")
-    if os.path.isdir(nvvm_src) and not os.path.exists(nvvm_dst):
-        os.symlink(nvvm_src, nvvm_dst)
-    merge_symlinks(os.path.join(dirs["nvcc"], "include"), os.path.join(home, "include"))
-    merge_symlinks(os.path.join(dirs["cudart"], "include"), os.path.join(home, "include"))
-    merge_symlinks(os.path.join(dirs["cccl"], "include"), os.path.join(home, "include"))
-    merge_symlinks(os.path.join(dirs["cudart"], "lib"), os.path.join(home, "lib64"))
+    # nvcc gets a retry ladder: try the version matching CUDA_TAG first, then
+    # progressively different versions in the same CUDA major line. This
+    # matters because a specific nvcc point release's bundled crt/*.h headers
+    # can conflict with a host glibc/gcc newer than that release anticipated
+    # (a real, recurring NVIDIA/host-toolchain compatibility gap, usually
+    # fixed in a later nvcc point release, not by a compiler flag) -- nvcc's
+    # own version doesn't need to match cudart/cccl's, it only needs to
+    # produce code for the target GPU arch and link against cudart's ABI,
+    # both of which are stable across CUDA 12.x minor versions.
+    nvcc_pkg = f"nvidia-cuda-nvcc-cu{major}"
+    try:
+        exact = pick_redist_version(nvcc_pkg, major, minor)
+    except Exception as e:
+        return None, f"could not query pypi.org for {nvcc_pkg}: {e}"
+    try:
+        all_versions = list_versions_for_major(nvcc_pkg, major)
+    except Exception as e:
+        all_versions = [exact] if exact else []
 
-    active = os.path.join(toolkit_root, "active")
-    if os.path.islink(active):
-        os.remove(active)
-    elif os.path.exists(active):
-        shutil.rmtree(active)
-    os.symlink(home, active)
+    candidates = [v for v in [exact] if v]
+    candidates += [v for v in all_versions if v not in candidates]
+    candidates = candidates[:4]  # bound how many ~50MB attempts we'll make
+    if not candidates:
+        return None, f"no {major}.x release of {nvcc_pkg} found on PyPI"
 
-    log("verifying with a real compile + GPU run ...")
-    return home, None
+    last_err = None
+    for i, nvcc_version in enumerate(candidates, 1):
+        log(f"[nvcc attempt {i}/{len(candidates)}] cuda_nvcc {nvcc_version} ...")
+        try:
+            nvcc_dir = fetch_component("nvcc", nvcc_pkg, "cuda_nvcc", major, minor,
+                                        toolkit_root, workdir, forced_version=nvcc_version)
+        except Exception as e:
+            last_err = f"fetching cuda_nvcc {nvcc_version} failed: {e}"
+            log(f"    {last_err}")
+            continue
+
+        home = build_merged_home(toolkit_root, f"merged-{nvcc_version}", nvcc_dir, dirs["cudart"], dirs["cccl"])
+        log(f"    verifying cuda_nvcc {nvcc_version} with a real compile + GPU run ...")
+        ok, detail = verify_cuda_home(home, arch, workdir)
+        if ok:
+            active = os.path.join(toolkit_root, "active")
+            if os.path.islink(active):
+                os.remove(active)
+            elif os.path.exists(active):
+                shutil.rmtree(active)
+            os.symlink(home, active)
+            return home, (nvcc_version, detail)
+        last_err = f"cuda_nvcc {nvcc_version} failed verification:\n{detail}"
+        log(f"    {last_err}")
+
+    return None, last_err or "no nvcc candidates could be verified"
 
 
 def main():
@@ -262,27 +429,22 @@ def main():
             return 0
         log(f"   [skip] {label} ({path}): {detail}")
 
-    home, err = self_heal(args.root, args.cuda_tag, args.arch, workdir)
+    home, result = self_heal(args.root, args.cuda_tag, args.arch, workdir)
+    shutil.rmtree(workdir, ignore_errors=True)
     if home is None:
         log("")
         log("!! self-heal could not get a working CUDA toolkit:")
-        log(f"   {err}")
+        log(f"   {result}")
         log("")
         log("   Everything tried:")
         for label, path, ok, detail in tried:
             log(f"     - {label} ({path}): {detail}")
         log("   Set CUDA_HOME explicitly if you know of a working toolkit at a nonstandard path:")
         log("     make check-cuda CUDA_HOME=/path/to/cuda-toolkit")
-        shutil.rmtree(workdir, ignore_errors=True)
         return 1
 
-    ok, detail = verify_cuda_home(home, args.arch, workdir)
-    shutil.rmtree(workdir, ignore_errors=True)
-    if not ok:
-        log(f"!! self-heal downloaded a toolkit but it failed verification: {detail}")
-        return 1
-
-    log(f"-- self-heal succeeded: {home} ({detail}) --")
+    nvcc_version, detail = result
+    log(f"-- self-heal succeeded: {home} (cuda_nvcc {nvcc_version}, {detail}) --")
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
     with open(cache_file, "w") as f:
         f.write(home + "\n")

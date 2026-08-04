@@ -14,9 +14,13 @@ build/
 datasets/
 data/
 results/
+smoke_logs/
 wandb/
 *.ply
 *.mp4
+
+# Externally-vendored, cloned on-demand by `make simple-knn` -- not ours to commit
+MonoGS/submodules/simple-knn/
 
 # Editors
 .vscode/

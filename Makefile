@@ -53,20 +53,24 @@ else
 ACTIVATE = source $(VENV_DIR)/bin/activate
 endif
 
-# Best-effort parse-time CUDA_HOME guess, used only by `doctor`'s informational
-# display below and as a manual override point (`make check-cuda CUDA_HOME=...`).
-# The actual build targets don't use this Make variable -- `check-cuda` resolves
-# (and self-heals if needed) CUDA_HOME at runtime via resolve_cuda.py and caches
-# it to .cuda-toolkit/cuda_home.txt, which build-monogs/build-splatam/
-# build-splatonic/checkpoint-a read at runtime instead. That split exists because
-# Make variables are fixed at parse time, before any recipe (including a
-# self-heal download) has a chance to run.
-CUDA_HOME := $(shell echo $$CUDA_HOME)
-ifeq ($(CUDA_HOME),)
-CUDA_HOME := $(shell command -v nvcc >/dev/null 2>&1 && dirname "$$(dirname "$$(command -v nvcc)")")
-endif
-ifeq ($(CUDA_HOME),)
-CUDA_HOME := $(shell for d in /usr/local/cuda /usr/local/cuda-12.8 /usr/local/cuda-12.6 /usr/local/cuda-12.4 /usr/local/cuda-12.1 /usr/local/cuda-12.0 /usr/local/cuda-11.8 /opt/cuda; do [ -x "$$d/bin/nvcc" ] && echo "$$d" && break; done)
+# CUDA_HOME itself is intentionally left unset by default (plain `?=`, empty)
+# -- it's the explicit-override variable: `make build-monogs CUDA_HOME=/path`.
+# Build targets fall back to the runtime-verified path in
+# .cuda-toolkit/cuda_home.txt (written by `check-cuda`, which self-heals if
+# needed) whenever this is empty. It must NOT be auto-populated by guessing
+# at parse time -- a guessed value here is indistinguishable from a real user
+# override to the `[ -n "$$CUDA_HOME" ] || use-the-cache` fallback used
+# throughout, which would silently defeat check-cuda's own, more rigorous
+# verification (raw nvcc compile is not enough -- see resolve_cuda.py; a
+# system nvcc can pass a raw compile and still fail the real
+# setup.py/BuildExtension path every package here actually uses).
+CUDA_HOME ?=
+
+# Best-effort parse-time guess, for `doctor`'s informational display ONLY --
+# never used by any build target, and never treated as an override.
+CUDA_HOME_GUESS := $(shell command -v nvcc >/dev/null 2>&1 && dirname "$$(dirname "$$(command -v nvcc)")")
+ifeq ($(CUDA_HOME_GUESS),)
+CUDA_HOME_GUESS := $(shell for d in /usr/local/cuda /usr/local/cuda-12.8 /usr/local/cuda-12.6 /usr/local/cuda-12.4 /usr/local/cuda-12.1 /usr/local/cuda-12.0 /usr/local/cuda-11.8 /opt/cuda; do [ -x "$$d/bin/nvcc" ] && echo "$$d" && break; done)
 endif
 
 SHELL := /bin/bash
@@ -174,6 +178,10 @@ doctor:
 		"$(CUDA_HOME)/bin/nvcc" --version | tail -1
 	else
 		echo "!! no usable nvcc found yet (checked \$$CUDA_HOME, PATH, common install dirs)"
+		if [ -n "$(CUDA_HOME_GUESS)" ]; then
+			echo "   (a possible candidate exists at $(CUDA_HOME_GUESS), but hasn't been verified against"
+			echo "   the real torch-extension build path yet -- run 'make check-cuda' to actually check it)"
+		fi
 		if command -v module >/dev/null 2>&1; then
 			echo "   this cluster has environment modules -- checking for a CUDA one:"
 			module avail 2>&1 | grep -i cuda || echo "   (no cuda-named module found; ask cluster docs/admins for the right module name)"
@@ -281,7 +289,8 @@ build-monogs: check-cuda deps-monogs simple-knn
 	$(ACTIVATE)
 	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
 	export CUDA_HOME
-	export PATH="$$CUDA_HOME/bin:$$PATH"
+	VENV_BIN="$$(dirname "$$(command -v python)")"
+	export PATH="$$VENV_BIN:$$CUDA_HOME/bin:$$PATH"
 	export TORCH_CUDA_ARCH_LIST=$(ARCH)
 	export MAX_JOBS=$(MAX_JOBS)
 	cd MonoGS
@@ -294,7 +303,8 @@ build-splatam: check-cuda constraints
 	$(ACTIVATE)
 	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
 	export CUDA_HOME
-	export PATH="$$CUDA_HOME/bin:$$PATH"
+	VENV_BIN="$$(dirname "$$(command -v python)")"
+	export PATH="$$VENV_BIN:$$CUDA_HOME/bin:$$PATH"
 	export TORCH_CUDA_ARCH_LIST=$(ARCH)
 	export MAX_JOBS=$(MAX_JOBS)
 	cd SplaTAM
@@ -304,7 +314,8 @@ build-splatonic: check-cuda constraints
 	$(ACTIVATE)
 	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
 	export CUDA_HOME
-	export PATH="$$CUDA_HOME/bin:$$PATH"
+	VENV_BIN="$$(dirname "$$(command -v python)")"
+	export PATH="$$VENV_BIN:$$CUDA_HOME/bin:$$PATH"
 	export TORCH_CUDA_ARCH_LIST=$(ARCH)
 	export MAX_JOBS=$(MAX_JOBS)
 	cd SPLATONIC

@@ -1,3 +1,4 @@
+import os
 import random
 import time
 
@@ -39,6 +40,7 @@ class BackEnd(mp.Process):
         self.initialized = not self.monocular
         self.keyframe_optimizers = None
         self.map_iter_counter = 0
+        self.pending_opacity_reset = False
 
     def set_hyperparams(self):
         self.save_results = self.config["Results"]["save_results"]
@@ -78,6 +80,7 @@ class BackEnd(mp.Process):
         self.current_window = []
         self.initialized = not self.monocular
         self.keyframe_optimizers = None
+        self.pending_opacity_reset = False
 
         # remove all gaussians
         self.gaussians.prune_points(self.gaussians.unique_kfIDs >= 0)
@@ -355,12 +358,40 @@ class BackEnd(mp.Process):
                     gaussian_split = True
 
                 ## Opacity reset
+                # visibility_filter_acm is only populated by dense render
+                # iterations (see the use_dense branches above) -- on a
+                # sparse iteration it is []. reset_opacity_nonvisible()
+                # treats an empty filter list as "nothing is visible" and
+                # wipes EVERY Gaussian's opacity, not just non-visible ones.
+                # Since map_iter_counter/gaussian_reset/flip_ratio are
+                # coprime, firing this unconditionally hits a sparse
+                # iteration ~3-in-4 times it recurs. Defer instead of
+                # skipping outright, so the reset still happens (just on
+                # the next iteration where a fresh, correctly-shaped dense
+                # visibility filter is actually available) rather than
+                # silently dropping ~75% of resets.
                 if (self.iteration_count % self.gaussian_reset) == 0 and (
                     not update_gaussian
                 ):
+                    if not self.pending_opacity_reset and os.environ.get("SPLATONIC_DEBUG_OPACITY_RESET"):
+                        Log(f"DBG_OPACITY_RESET due at iteration={self.iteration_count} "
+                            f"use_dense={use_dense} visibility_filter_acm_len={len(visibility_filter_acm)} "
+                            f"-- {'firing now' if (use_dense and not update_gaussian and visibility_filter_acm) else 'DEFERRING'}")
+                    self.pending_opacity_reset = True
+
+                if (
+                    self.pending_opacity_reset
+                    and use_dense
+                    and (not update_gaussian)
+                    and visibility_filter_acm
+                ):
                     Log("Resetting the opacity of non-visible Gaussians")
+                    if os.environ.get("SPLATONIC_DEBUG_OPACITY_RESET"):
+                        Log(f"DBG_OPACITY_RESET applying at iteration={self.iteration_count} "
+                            f"visibility_filter_acm_len={len(visibility_filter_acm)}")
                     self.gaussians.reset_opacity_nonvisible(visibility_filter_acm)
                     gaussian_split = True
+                    self.pending_opacity_reset = False
 
                 self.gaussians.optimizer.step()
                 self.gaussians.optimizer.zero_grad(set_to_none=True)

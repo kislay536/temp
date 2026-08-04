@@ -101,6 +101,7 @@ class SLAM:
         )
 
         backend_process = mp.Process(target=self.backend.run)
+        gui_process = None
         if self.use_gui:
             from gui import slam_gui
 
@@ -109,7 +110,29 @@ class SLAM:
             time.sleep(5)
 
         backend_process.start()
-        self.frontend.run()
+        try:
+            self.frontend.run()
+        except Exception:
+            # backend.run() is an unconditional `while True:` loop that only
+            # exits on an explicit queue message -- sent later in the NORMAL
+            # completion path below (e.g. "color_refinement", "pause"). If
+            # frontend.run() raises, none of that ever gets sent, and
+            # backend_process (a non-daemon mp.Process) is left running
+            # forever; Python's default atexit multiprocessing cleanup then
+            # blocks interpreter shutdown trying to join a process that will
+            # never exit on its own -- observed directly as a hung, GPU-
+            # active orphan after any uncaught exception here (e.g. an
+            # eval_ate/evo alignment failure). Only clean up this way on the
+            # EXCEPTIONAL path: the normal path still needs backend_process
+            # alive afterward (color_refinement is dispatched to it via
+            # backend_queue further below).
+            if backend_process.is_alive():
+                backend_process.terminate()
+                backend_process.join(timeout=10)
+            if gui_process is not None and gui_process.is_alive():
+                gui_process.terminate()
+                gui_process.join(timeout=10)
+            raise
         backend_queue.put(["pause"])
 
         end.record()

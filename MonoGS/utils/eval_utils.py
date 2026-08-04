@@ -26,8 +26,21 @@ def evaluate_evo(poses_gt, poses_est, plot_dir, label, monocular=False):
     ## Plot
     traj_ref = PosePath3D(poses_se3=poses_gt)
     traj_est = PosePath3D(poses_se3=poses_est)
-    traj_est.align(traj_ref, correct_scale=monocular)
-    traj_est_aligned = traj_est
+    # evo==1.11.0 (pinned in Makefile's deps-monogs) has no PosePath3D.align()
+    # instance method -- that's a newer-evo-only API. 1.11.0's real API is the
+    # free function trajectory.align_trajectory(), which deep-copies internally
+    # and returns the aligned trajectory rather than mutating in place.
+    try:
+        traj_est_aligned = trajectory.align_trajectory(traj_est, traj_ref, correct_scale=monocular)
+    except evo.core.geometry.GeometryException as e:
+        # Umeyama alignment needs enough non-degenerate (non-collinear) poses
+        # to have full-rank covariance. Shortly after a monocular
+        # re-initialization (few keyframes, little camera motion yet -- see
+        # FrontEnd.initialize()/the "lacks sufficient overlap" reset path),
+        # this can legitimately be too few/degenerate. A diagnostic ATE
+        # checkpoint failing this way should never crash the whole SLAM run.
+        Log(f"ATE alignment skipped ({label}): {e}", tag="Eval")
+        return float("nan")
 
     ## RMSE
     pose_relation = metrics.PoseRelation.translation_part
@@ -45,21 +58,31 @@ def evaluate_evo(poses_gt, poses_est, plot_dir, label, monocular=False):
     ) as f:
         json.dump(ape_stats, f, indent=4)
 
-    plot_mode = evo.tools.plot.PlotMode.xy
-    fig = plt.figure()
-    ax = evo.tools.plot.prepare_axis(fig, plot_mode)
-    ax.set_title(f"ATE RMSE: {ape_stat}")
-    evo.tools.plot.traj(ax, plot_mode, traj_ref, "--", "gray", "gt")
-    evo.tools.plot.traj_colormap(
-        ax,
-        traj_est_aligned,
-        ape_metric.error,
-        plot_mode,
-        min_map=ape_stats["min"],
-        max_map=ape_stats["max"],
-    )
-    ax.legend()
-    plt.savefig(os.path.join(plot_dir, "evo_2dplot_{}.png".format(str(label))), dpi=90)
+    # The plot is a nice-to-have visualization, not the metric itself (ape_stat,
+    # already computed above, is what callers actually need) -- a plotting
+    # failure (e.g. evo's traj_colormap vs. this matplotlib version disagreeing
+    # on colorbar axis handling, seen in practice with very short/sparse
+    # trajectories) must never prevent the real ATE number from being returned.
+    try:
+        plot_mode = evo.tools.plot.PlotMode.xy
+        fig = plt.figure()
+        ax = evo.tools.plot.prepare_axis(fig, plot_mode)
+        ax.set_title(f"ATE RMSE: {ape_stat}")
+        evo.tools.plot.traj(ax, plot_mode, traj_ref, "--", "gray", "gt")
+        evo.tools.plot.traj_colormap(
+            ax,
+            traj_est_aligned,
+            ape_metric.error,
+            plot_mode,
+            min_map=ape_stats["min"],
+            max_map=ape_stats["max"],
+        )
+        ax.legend()
+        plt.savefig(os.path.join(plot_dir, "evo_2dplot_{}.png".format(str(label))), dpi=90)
+    except Exception as e:
+        Log(f"ATE plot skipped ({label}): {e}", tag="Eval")
+    finally:
+        plt.close("all")
 
     return ape_stat
 
