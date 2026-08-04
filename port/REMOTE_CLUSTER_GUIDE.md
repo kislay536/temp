@@ -77,12 +77,24 @@ of them are specific to the new stack (the `np.unicode_` break is NumPy-2.0-spec
 but the torch-upgrade and simple-knn bugs are general pip/packaging issues that can
 bite an old stack too, just with different exact version numbers).
 
+**You don't need conda at all.** A plain `venv` (stdlib, no download required to
+create) works identically — this is what `Makefile`'s `env` target uses by default
+(`ENV_BACKEND=venv`), specifically because many clusters either lack conda on `PATH`
+or block `repo.anaconda.com` while still allowing PyPI/`download.pytorch.org` (which
+`pip` needs regardless of backend):
+
 ```bash
-conda create -n splatonic-port python=3.12 -y
-conda activate splatonic-port
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
 # Pick the torch build matching your cluster's CUDA driver, e.g. for CUDA 12.8:
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
+
+If you specifically want conda instead (e.g. it's already provisioned via `module
+load`), that works too — just `conda create -n splatonic-port python=3.12 -y &&
+conda activate splatonic-port` in place of the two `venv`/`activate` lines above, or
+pass `ENV_BACKEND=conda` to every `make` command.
 
 One shared env across all three repos is fine — their Python dependency lists
 (`opencv-python`, `munch`, `trimesh`, `evo`, `open3d`, `torchmetrics`, `plyfile`,

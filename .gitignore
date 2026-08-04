@@ -1,0 +1,21 @@
+# Created by the Makefile (port/REMOTE_CLUSTER_GUIDE.md) — never commit these.
+.venv/
+.conda/
+constraints.txt
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+
+# Datasets and run outputs (large, machine-specific, regenerable)
+datasets/
+data/
+results/
+wandb/
+*.ply
+*.mp4
+
+# Editors
+.vscode/
