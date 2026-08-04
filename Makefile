@@ -53,11 +53,14 @@ else
 ACTIVATE = source $(VENV_DIR)/bin/activate
 endif
 
-# Auto-detect the CUDA toolkit root (needed to BUILD the extensions -- torch's
-# bundled CUDA runtime is not enough, torch.utils.cpp_extension needs a real
-# nvcc + CUDA_HOME). Priority: existing $CUDA_HOME env var, nvcc already on
-# PATH, then common install locations. Override explicitly if none of these
-# match, e.g. `make build-monogs CUDA_HOME=/usr/local/cuda-12.4`.
+# Best-effort parse-time CUDA_HOME guess, used only by `doctor`'s informational
+# display below and as a manual override point (`make check-cuda CUDA_HOME=...`).
+# The actual build targets don't use this Make variable -- `check-cuda` resolves
+# (and self-heals if needed) CUDA_HOME at runtime via resolve_cuda.py and caches
+# it to .cuda-toolkit/cuda_home.txt, which build-monogs/build-splatam/
+# build-splatonic/checkpoint-a read at runtime instead. That split exists because
+# Make variables are fixed at parse time, before any recipe (including a
+# self-heal download) has a chance to run.
 CUDA_HOME := $(shell echo $$CUDA_HOME)
 ifeq ($(CUDA_HOME),)
 CUDA_HOME := $(shell command -v nvcc >/dev/null 2>&1 && dirname "$$(dirname "$$(command -v nvcc)")")
@@ -71,7 +74,7 @@ SHELL := /bin/bash
 .ONESHELL:
 .DEFAULT_GOAL := help
 
-.PHONY: help doctor install-conda env constraints fix-numpy simple-knn check-cuda \
+.PHONY: all full help doctor install-conda env constraints fix-numpy simple-knn check-cuda \
         deps-monogs build-monogs build-splatam build-splatonic build-all \
         verify-monogs checkpoint-a \
         data-splatam data-splatonic data-monogs data-all \
@@ -81,9 +84,37 @@ SHELL := /bin/bash
         run-monogs-trackflip run-monogs-reanchor run-monogs-sweep \
         smoke-monogs results clean
 
+## ------------------------------------------------------------- one-shot ----
+
+# Everything from a bare checkout up to "the pipeline runs and I can see logs",
+# in order, stopping at the first failure. Re-running redoes every step (env
+# included) -- that's intentional for a "from the beginning" one-shot command,
+# not meant to be a fast incremental rebuild loop.
+all: doctor env check-cuda fix-numpy simple-knn build-all verify-monogs checkpoint-a data-all smoke-monogs
+	@echo ""
+	@echo "=========================================================="
+	@echo " make all: done. Check ./smoke_logs/ for the smoke run output."
+	@echo " This did NOT run the full ~613-frame validation sweep on purpose"
+	@echo " (that's real GPU-hours, not a thing to trigger silently)."
+	@echo " If the smoke logs look clean, run:  make full"
+	@echo "=========================================================="
+
+# Same as `all`, plus the full multi-hour validation sweep + results table.
+# This is the actual multi-hour commitment -- run it once `all` looks clean.
+full: all run-monogs-sweep results
+	@echo ""
+	@echo "=========================================================="
+	@echo " make full: done. Full dense/sparse/motion-prior sweep results printed above."
+	@echo " Re-run 'make results' any time to see them again without re-running."
+	@echo "=========================================================="
+
 ## ---------------------------------------------------------------- help ----
 
 help:
+	@echo "One-shot:"
+	@echo "  all                  - everything from scratch up through smoke-monogs (stops on first failure)"
+	@echo "  full                 - all, plus the full multi-hour run-monogs-sweep + results (the real commitment)"
+	@echo ""
 	@echo "Setup:"
 	@echo "  doctor               - check nvidia-smi / nvcc / python / conda / network are visible"
 	@echo "  install-conda        - only if you want ENV_BACKEND=conda; installs into ./.conda (no sudo)"
@@ -92,7 +123,7 @@ help:
 	@echo "  constraints          - write constraints.txt pinning torch so nothing can silently upgrade it"
 	@echo "  fix-numpy            - patch np.unicode_ -> np.str_ in SplaTAM/SPLATONIC TUM loaders (NumPy 2.0)"
 	@echo "  simple-knn           - clone MonoGS's missing simple-knn submodule"
-	@echo "  check-cuda           - hard-fail early with guidance if no usable nvcc/CUDA_HOME is found"
+	@echo "  check-cuda           - find a working nvcc; self-heals one (no conda/root) via NVIDIA's redist archives if none exists"
 	@echo ""
 	@echo "Build:"
 	@echo "  deps-monogs          - install MonoGS's python dependencies"
@@ -136,16 +167,20 @@ help:
 doctor:
 	@echo "=== nvidia-smi ==="; nvidia-smi || echo "!! nvidia-smi not found"
 	@echo "=== CUDA toolkit (needed to BUILD the extensions; torch's bundled CUDA runtime is NOT enough) ==="
-	if [ -n "$(CUDA_HOME)" ] && [ -x "$(CUDA_HOME)/bin/nvcc" ]; then
+	if [ -f "$(ROOT)/.cuda-toolkit/cuda_home.txt" ]; then
+		echo "already resolved (system or self-healed): $$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
+	elif [ -n "$(CUDA_HOME)" ] && [ -x "$(CUDA_HOME)/bin/nvcc" ]; then
 		echo "CUDA_HOME = $(CUDA_HOME)"
 		"$(CUDA_HOME)/bin/nvcc" --version | tail -1
 	else
-		echo "!! no usable nvcc found (checked \$$CUDA_HOME, PATH, and common install dirs)"
+		echo "!! no usable nvcc found yet (checked \$$CUDA_HOME, PATH, common install dirs)"
 		if command -v module >/dev/null 2>&1; then
 			echo "   this cluster has environment modules -- checking for a CUDA one:"
 			module avail 2>&1 | grep -i cuda || echo "   (no cuda-named module found; ask cluster docs/admins for the right module name)"
 		else
-			echo "   no 'module' command here either. Set CUDA_HOME explicitly if a toolkit exists at a nonstandard path."
+			echo "   no 'module' command here either -- that's fine, 'make check-cuda' will self-heal one"
+			echo "   automatically (downloads NVIDIA's own nvcc/cudart/cccl redist archives, plain"
+			echo "   curl+tar, no conda/root needed)."
 		fi
 	fi
 	@echo "=== ENV_BACKEND=$(ENV_BACKEND) ==="
@@ -221,19 +256,19 @@ simple-knn:
 
 ## --------------------------------------------------------------- build ----
 
+# Finds a working nvcc, and if none exists anywhere (no module system, no
+# system install), self-heals one: downloads NVIDIA's own redistributable
+# archives (plain curl+tar, no conda, no root) for the 3 components needed to
+# build these CUDA extensions from source -- nvcc, cudart (headers+libcudart),
+# cccl (thrust/cub headers) -- fetched independently of whatever torch itself
+# bundles, and merges them into one CUDA_HOME. Every candidate -- existing or
+# self-healed -- is verified by actually compiling and running a .cu file on
+# the real GPU, never just a file-exists check. Resolved path is cached in
+# .cuda-toolkit/cuda_home.txt and re-verified (fast, no re-download) on every
+# subsequent call.
 check-cuda:
-	@if [ -z "$(CUDA_HOME)" ] || [ ! -x "$(CUDA_HOME)/bin/nvcc" ]; then
-		echo "!! No usable CUDA toolkit found (nvcc missing) -- torch's own bundled"
-		echo "   CUDA runtime is NOT enough to build these extensions, a real nvcc is required."
-		echo "   If this cluster uses environment modules, try:"
-		echo "     module avail 2>&1 | grep -i cuda"
-		echo "     module load cuda/<version-shown-above>"
-		echo "     make check-cuda        # re-check, should auto-detect nvcc now"
-		echo "   Otherwise set it explicitly:  make build-monogs CUDA_HOME=/path/to/cuda-toolkit"
-		exit 1
-	fi
-	@echo "CUDA_HOME = $(CUDA_HOME)"
-	@"$(CUDA_HOME)/bin/nvcc" --version | tail -1
+	$(ACTIVATE)
+	python $(ROOT)/port/make_helpers/resolve_cuda.py --cuda-tag $(CUDA_TAG) --arch $(ARCH) --root $(ROOT)
 
 deps-monogs: constraints
 	$(ACTIVATE)
@@ -244,8 +279,9 @@ deps-monogs: constraints
 
 build-monogs: check-cuda deps-monogs simple-knn
 	$(ACTIVATE)
-	export CUDA_HOME=$(CUDA_HOME)
-	export PATH=$(CUDA_HOME)/bin:$$PATH
+	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
+	export CUDA_HOME
+	export PATH="$$CUDA_HOME/bin:$$PATH"
 	export TORCH_CUDA_ARCH_LIST=$(ARCH)
 	export MAX_JOBS=$(MAX_JOBS)
 	cd MonoGS
@@ -256,8 +292,9 @@ build-monogs: check-cuda deps-monogs simple-knn
 
 build-splatam: check-cuda constraints
 	$(ACTIVATE)
-	export CUDA_HOME=$(CUDA_HOME)
-	export PATH=$(CUDA_HOME)/bin:$$PATH
+	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
+	export CUDA_HOME
+	export PATH="$$CUDA_HOME/bin:$$PATH"
 	export TORCH_CUDA_ARCH_LIST=$(ARCH)
 	export MAX_JOBS=$(MAX_JOBS)
 	cd SplaTAM
@@ -265,8 +302,9 @@ build-splatam: check-cuda constraints
 
 build-splatonic: check-cuda constraints
 	$(ACTIVATE)
-	export CUDA_HOME=$(CUDA_HOME)
-	export PATH=$(CUDA_HOME)/bin:$$PATH
+	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
+	export CUDA_HOME
+	export PATH="$$CUDA_HOME/bin:$$PATH"
 	export TORCH_CUDA_ARCH_LIST=$(ARCH)
 	export MAX_JOBS=$(MAX_JOBS)
 	cd SPLATONIC
@@ -281,7 +319,8 @@ verify-monogs:
 
 checkpoint-a: check-cuda
 	@echo "Running standalone CUDA correctness harness for arch $(ARCH) (edits run_checkpoint_a.sh's -gencode flag in place)"
-	export PATH=$(CUDA_HOME)/bin:$$PATH
+	CUDA_HOME="$(CUDA_HOME)"; [ -n "$$CUDA_HOME" ] || CUDA_HOME="$$(cat $(ROOT)/.cuda-toolkit/cuda_home.txt)"
+	export PATH="$$CUDA_HOME/bin:$$PATH"
 	sm=$$(echo $(ARCH) | tr -d '.'); \
 	sed -i "s/compute_[0-9]*,code=sm_[0-9]*/compute_$${sm},code=sm_$${sm}/" port/tests/run_checkpoint_a.sh
 	cd port/tests && bash run_checkpoint_a.sh

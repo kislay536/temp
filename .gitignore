@@ -1,6 +1,7 @@
 # Created by the Makefile (port/REMOTE_CLUSTER_GUIDE.md) — never commit these.
 .venv/
 .conda/
+.cuda-toolkit/
 constraints.txt
 
 # Python
