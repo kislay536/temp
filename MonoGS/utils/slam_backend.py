@@ -39,7 +39,6 @@ class BackEnd(mp.Process):
         self.current_window = []
         self.initialized = not self.monocular
         self.keyframe_optimizers = None
-        self.map_iter_counter = 0
         self.pending_opacity_reset = False
 
     def set_hyperparams(self):
@@ -69,9 +68,62 @@ class BackEnd(mp.Process):
         )
 
     def add_next_kf(self, frame_idx, viewpoint, init=False, scale=2.0, depth_map=None):
+        self._compute_novelty_mask(viewpoint)
         self.gaussians.extend_from_pcd_seq(
             viewpoint, kf_id=frame_idx, init=init, scale=scale, depthmap=depth_map
         )
+
+    def _compute_novelty_mask(self, viewpoint):
+        """Port of SPLATONIC's per-keyframe "novelty/unseen" mask
+        (SPLATONIC/scripts/splatam_sparse.py add_new_gaussians, ~line 556-599):
+        pixels where the EXISTING map (before this keyframe's new Gaussians
+        are added) doesn't yet explain the observation -- either barely
+        covered by any Gaussian, or its rendered depth disagrees badly with
+        the sensor depth. Stored once as viewpoint.novelty_mask and never
+        refreshed afterward (a permanent snapshot), matching SPLATONIC's own
+        semantics exactly. Unioned into that keyframe's sparse mapping pixel
+        sample later (see map()) so newly-observed/poorly-modeled regions
+        keep getting supervision even on sparse passes.
+
+        Reuses MonoGS's existing dense render() output directly -- opacity
+        (accumulated 1-T alpha) is structurally identical to SPLATONIC's
+        silhouette, so no new CUDA kernel work is needed here, just an extra
+        render call against the PRE-update Gaussian map.
+        """
+        viewpoint.novelty_mask = None
+        if not self.config["Training"].get("use_splatonic", False):
+            return  # dense-only baseline never consumes this -- skip the extra render entirely
+        if self.gaussians.get_xyz.shape[0] == 0:
+            return  # no existing map yet (first keyframe) -- nothing is "novel" relative to nothing
+
+        with torch.no_grad():
+            render_pkg = render(
+                viewpoint, self.gaussians, self.pipeline_params, self.background
+            )
+            opacity = render_pkg["opacity"][0]
+            rendered_depth = render_pkg["depth"][0]
+
+            novelty_opacity_threshold = self.config["Training"].get(
+                "novelty_opacity_threshold", 0.5
+            )
+            novelty_mask = opacity < novelty_opacity_threshold
+
+            if viewpoint.depth is not None:
+                gt_depth = torch.from_numpy(viewpoint.depth).to(
+                    device=rendered_depth.device, dtype=rendered_depth.dtype
+                )
+                valid_gt = gt_depth > 0
+                depth_error = (rendered_depth - gt_depth).abs() * valid_gt
+                if valid_gt.any():
+                    median_error = depth_error[valid_gt].median()
+                    bad_depth = (
+                        valid_gt
+                        & (rendered_depth > gt_depth)
+                        & (depth_error > 50 * median_error)
+                    )
+                    novelty_mask = novelty_mask | bad_depth
+
+            viewpoint.novelty_mask = novelty_mask
 
     def reset(self):
         self.iteration_count = 0
@@ -166,8 +218,16 @@ class BackEnd(mp.Process):
             self.iteration_count += 1
             self.last_sent += 1
 
-            use_dense = (not use_splatonic) or (self.map_iter_counter % FLIP == 0)
-            self.map_iter_counter += 1
+            # A pending opacity reset forces every frame processed this
+            # iteration to dense, regardless of each viewpoint's own FLIP
+            # phase (see the per-keyframe counters below) -- guarantees the
+            # reset gets a complete, trustworthy visibility snapshot on a
+            # fixed, small delay (the iteration right after it becomes due)
+            # instead of waiting for every keyframe's independent counter to
+            # coincidentally land on dense at the same time, which with
+            # per-keyframe-independent counters could take a very long time
+            # or never happen at all.
+            force_full_dense = self.pending_opacity_reset
 
             loss_mapping = 0
             viewspace_point_tensor_acm = []
@@ -189,7 +249,23 @@ class BackEnd(mp.Process):
                 # (often just densified this step) and needs full supervision
                 # rather than a 3-in-4 chance of a sparse pass like every other
                 # window frame.
-                if use_dense or cam_idx == 0:
+                #
+                # Every OTHER window frame gets its own persistent, independent
+                # FLIP counter (a plain attribute on the Camera object, not a
+                # single counter shared by the whole window) -- matching
+                # SPLATONIC's own per-keyframe counter (splatam_sparse.py:
+                # keyframe_list[i]['counter'], incremented only when that
+                # specific keyframe is processed, fully decoupled from every
+                # other keyframe's phase). The previous single global
+                # map_iter_counter made every window frame dense/sparse in
+                # lockstep on the same iteration, which SPLATONIC never does.
+                if not use_splatonic or cam_idx == 0 or force_full_dense:
+                    frame_use_dense = True
+                else:
+                    flip_counter = getattr(viewpoint, "flip_counter", 0)
+                    frame_use_dense = flip_counter == 0
+                    viewpoint.flip_counter = (flip_counter + 1) % FLIP
+                if frame_use_dense:
                     render_pkg = render(
                         viewpoint, self.gaussians, self.pipeline_params, self.background
                     )
@@ -228,6 +304,16 @@ class BackEnd(mp.Process):
                     # supervision on a sparse mapping iteration.
                     num_sparse = max(64, (H // 4) * (W // 4))
                     pixel_mask = adaptive_random_sampling(gt_image, num_sparse)
+                    # Union in this keyframe's own "novelty/unseen" mask, a
+                    # permanent snapshot taken once at keyframe-insertion time
+                    # (see _compute_novelty_mask) -- matches SPLATONIC's own
+                    # per-keyframe novelty union (splatam_sparse.py:1065-1066),
+                    # giving newly-observed/poorly-modeled regions extra
+                    # supervision on every sparse revisit, not just when the
+                    # random adaptive sample happens to land on them.
+                    novelty_mask = getattr(viewpoint, "novelty_mask", None)
+                    if novelty_mask is not None:
+                        pixel_mask = pixel_mask | novelty_mask
                     pixel_range, pixel_coords = get_pixel_info(
                         pixel_mask, tile_size=tile_size
                     )
@@ -251,7 +337,13 @@ class BackEnd(mp.Process):
 
             for cam_idx in torch.randperm(len(random_viewpoint_stack))[:2]:
                 viewpoint = random_viewpoint_stack[cam_idx]
-                if use_dense:
+                if not use_splatonic or force_full_dense:
+                    frame_use_dense = True
+                else:
+                    flip_counter = getattr(viewpoint, "flip_counter", 0)
+                    frame_use_dense = flip_counter == 0
+                    viewpoint.flip_counter = (flip_counter + 1) % FLIP
+                if frame_use_dense:
                     render_pkg = render(
                         viewpoint, self.gaussians, self.pipeline_params, self.background
                     )
@@ -289,6 +381,16 @@ class BackEnd(mp.Process):
                     # supervision on a sparse mapping iteration.
                     num_sparse = max(64, (H // 4) * (W // 4))
                     pixel_mask = adaptive_random_sampling(gt_image, num_sparse)
+                    # Union in this keyframe's own "novelty/unseen" mask, a
+                    # permanent snapshot taken once at keyframe-insertion time
+                    # (see _compute_novelty_mask) -- matches SPLATONIC's own
+                    # per-keyframe novelty union (splatam_sparse.py:1065-1066),
+                    # giving newly-observed/poorly-modeled regions extra
+                    # supervision on every sparse revisit, not just when the
+                    # random adaptive sample happens to land on them.
+                    novelty_mask = getattr(viewpoint, "novelty_mask", None)
+                    if novelty_mask is not None:
+                        pixel_mask = pixel_mask | novelty_mask
                     pixel_range, pixel_coords = get_pixel_info(
                         pixel_mask, tile_size=tile_size
                     )
@@ -379,30 +481,34 @@ class BackEnd(mp.Process):
                     gaussian_split = True
 
                 ## Opacity reset
-                # visibility_filter_acm is only populated by dense render
-                # iterations (see the use_dense branches above) -- on a
-                # sparse iteration it is []. reset_opacity_nonvisible()
-                # treats an empty filter list as "nothing is visible" and
-                # wipes EVERY Gaussian's opacity, not just non-visible ones.
-                # Since map_iter_counter/gaussian_reset/flip_ratio are
-                # coprime, firing this unconditionally hits a sparse
-                # iteration ~3-in-4 times it recurs. Defer instead of
-                # skipping outright, so the reset still happens (just on
-                # the next iteration where a fresh, correctly-shaped dense
-                # visibility filter is actually available) rather than
-                # silently dropping ~75% of resets.
+                # visibility_filter_acm is only populated by frames that
+                # rendered densely this iteration -- with per-keyframe-
+                # independent FLIP counters (see the per-frame loops above),
+                # different window frames can be dense/sparse on completely
+                # different iterations, so "wait for a naturally fully-dense
+                # iteration" could take a very long time or never happen.
+                # reset_opacity_nonvisible() treats an empty/partial filter
+                # list as "nothing [else] is visible" and would wipe or
+                # corrupt Gaussians that are genuinely visible in a window
+                # frame that just wasn't rendered this iteration -- so
+                # instead, once due, force_full_dense (set above, at the top
+                # of this same iteration loop) makes EVERY frame processed
+                # this iteration dense, guaranteeing a complete, trustworthy
+                # visibility_filter_acm on a fixed one-iteration delay
+                # (pending_opacity_reset is read at the top of iteration N+1
+                # to decide forcing, having been set at the bottom of
+                # iteration N here) rather than an indefinite wait.
                 if (self.iteration_count % self.gaussian_reset) == 0 and (
                     not update_gaussian
                 ):
                     if not self.pending_opacity_reset and os.environ.get("SPLATONIC_DEBUG_OPACITY_RESET"):
                         Log(f"DBG_OPACITY_RESET due at iteration={self.iteration_count} "
-                            f"use_dense={use_dense} visibility_filter_acm_len={len(visibility_filter_acm)} "
-                            f"-- {'firing now' if (use_dense and not update_gaussian and visibility_filter_acm) else 'DEFERRING'}")
+                            f"-- will force full-dense and apply next iteration")
                     self.pending_opacity_reset = True
 
                 if (
                     self.pending_opacity_reset
-                    and use_dense
+                    and force_full_dense
                     and (not update_gaussian)
                     and visibility_filter_acm
                 ):

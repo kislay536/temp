@@ -47,6 +47,12 @@ Training:
   flip_ratio: 4
   tracking_tile_size: 16
   mapping_tile_size: 4
+  # Opacity threshold below which a pixel counts as "novel/unseen" for a
+  # newly-added keyframe (SPLATONIC's own sil_thres for mapping is a
+  # separate, tunable value from tracking's -- deliberately not reusing the
+  # 0.95 threshold used elsewhere in this codebase for tracking-validity
+  # gating, which would flag almost everything as novel).
+  novelty_opacity_threshold: 0.5
 
   lr:
     cam_rot_delta: 0.003
