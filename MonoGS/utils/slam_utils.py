@@ -1,7 +1,5 @@
 import torch
 
-from gaussian_splatting.utils.loss_utils import ssim
-
 
 def image_gradient(image):
     # Compute image gradient using Scharr Filter
@@ -109,18 +107,7 @@ def get_loss_mapping_rgb(config, image, depth, viewpoint):
     rgb_pixel_mask = (gt_image.sum(dim=0) > rgb_boundary_threshold).view(*mask_shape)
     l1_rgb = torch.abs(image * rgb_pixel_mask - gt_image * rgb_pixel_mask)
 
-    # SPLATONIC's own dense mapping RGB loss is an 80/20 L1/SSIM blend
-    # (SPLATONIC/scripts/splatam_sparse.py: 0.8*l1 + 0.2*(1-ssim)); MonoGS's
-    # sparse mapping loss (get_loss_mapping_sparse below) already includes
-    # this SSIM term via calc_ssim_shuffled_packed, but dense mapping never
-    # did -- meaning the mapping objective silently changed shape depending
-    # on which FLIP branch fired that iteration. SSIM is computed on the
-    # full, unmasked image (matching SPLATONIC): its windowed comparison
-    # needs a real 2D neighborhood, which a boundary-masked image would
-    # distort at the mask edges.
-    lambda_dssim = config["opt_params"].get("lambda_dssim", 0.2)
-    ssim_val = ssim(image, gt_image)
-    return (1.0 - lambda_dssim) * l1_rgb.mean() + lambda_dssim * (1.0 - ssim_val)
+    return l1_rgb.mean()
 
 
 def get_loss_mapping_rgbd(config, image, depth, viewpoint, initialization=False):
