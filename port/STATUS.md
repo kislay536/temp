@@ -1,10 +1,17 @@
 # SPLATONIC-on-MonoGS Port — Status
 
-Last updated: 2026-08-02 (CU9.1–CU9.2 done, tagged `milestone-4e-cuda-live` —
+Last updated: 2026-08-05 (opacity-reset bug found and fixed, tagged
+`opacity-fix`; a fresh SPLATONIC-vs-MonoGS parity re-verification found and
+fixed 3 more real discrepancies, tagged `splatonic-parity-fix` — sparse
+PSNR/ATE measurably improved but the core §9 rotation-drift regression is
+**not** resolved, and the port is not yet faithful enough to call the gap
+a finding about SPLATONIC itself. See §10.)
+
+Previously (2026-08-02): CU9.1–CU9.2 done, tagged `milestone-4e-cuda-live` —
 **the full port now runs end-to-end through a real `slam.py` SLAM session with
 the sparse CUDA rasterizers live**. Milestone 4 is complete. Milestone 5's
 V1/V2 are confirmed; V3–V5 surfaced a large, still-unresolved ATE/PSNR
-regression in the sparse path — see §9.)
+regression in the sparse path — see §9.
 
 Roadmap: `port/MILESTONE_PLAN_V3.md`. This document is a snapshot of what has
 been done, what changed where, and what is still open. It is not itself a
@@ -178,7 +185,7 @@ satisfied by this work; CU9 (activating the dispatch switch) and Milestone
 | CU9.2 | Full `slam.py` smoke test, sparse rasterizer active, tag `milestone-4e-cuda-live` | ✅ Done, committed `ba57f8e` — full 613-frame TUM fr1_desk run completes, no CUDA errors, tracking dispatches to `TrackRasterizer`, mapping alternates Dense/`MapRasterizer` per FLIP. Required sizing `map-rasterization`'s `MAX_NUM_RENDERED` down (16M→1M) to fit this dev machine's 4GB GPU — see below. |
 | V1 | Confirm FLIP counter uses real sparse rasterizer | ✅ Confirmed via code inspection (`slam_backend.py:166`) + exercised live across 613 frames in CU9.2 — no code change needed |
 | V2 | Confirm densification gated to dense passes | ✅ Confirmed via code inspection (`slam_backend.py:204-206,260-262,335`) — `viewspace_point_tensor_acm`/`visibility_filter_acm`/`radii_acm` only populated in `use_dense` branches — no code change needed |
-| V3–V5 | Baseline ATE / FPS / PSNR-SSIM comparison, sparse vs dense | ⚠️ Measured — **large, unresolved quality gap found**, see §9 below |
+| V3–V5 | Baseline ATE / FPS / PSNR-SSIM comparison, sparse vs dense | ⚠️ Measured — **large, unresolved quality gap found**, see §9. Partially narrowed by §10's opacity/parity fixes, root cause still open |
 
 ---
 
@@ -1745,3 +1752,277 @@ the newer software stack Kaggle actually reported. `port/kaggle_validate.ipynb`
 should now build and run end-to-end on Kaggle without further guessing —
 next step is still the actual multi-hour, full-sequence comparative run,
 which only Kaggle's GPU-hours can provide.
+
+---
+
+## 10. Opacity-reset bug, a SPLATONIC-parity re-verification, and where the §9 regression actually stands
+
+Two real bugs were found and fixed since §9, plus a fresh, independent
+re-verification of the whole port against SPLATONIC's reference source.
+Net effect: the sparse-vs-dense PSNR/ATE gap measurably narrowed, but §9's
+core rotation-drift regression is **not resolved**, and this section also
+concludes the port is not yet faithful enough to call that gap a finding
+about SPLATONIC itself, rather than about this specific integration.
+
+### 10.1 Opacity-reset bug (tag `opacity-fix`, commit `5af78e9`)
+
+**Bug**: `BackEnd.map()`'s periodic "reset opacity of non-visible
+Gaussians" call (`slam_backend.py`, fires every `gaussian_reset=2001`
+iterations) could receive an **empty** visibility filter whenever it landed
+on a sparse mapping iteration — only dense iterations populate
+`visibility_filter_acm`. `GaussianModel.reset_opacity_nonvisible` treats an
+empty filter list as "nothing is visible" and resets **every** Gaussian's
+opacity to 0.4, not just non-visible ones. Since
+`gcd(gaussian_reset=2001, flip_ratio=4)=1`, this isn't a rare fluke — it
+recurs, hitting a sparse (bug-triggering) iteration ~3 out of 4 times.
+Confirmed as a regression introduced by this port (the sparse
+"map-rasterization" branch), not pre-existing upstream MonoGS behavior
+(`port/MonoGS.md:705-711` documents the original, conservative "only
+non-visible" design intent).
+
+**Fix**: a `pending_opacity_reset` flag defers the reset until the next
+iteration where a real, freshly-rendered dense visibility filter is
+actually available, instead of either wiping everything (the bug) or
+silently dropping ~75% of resets (the simplest alternative fix, rejected —
+that would itself degrade quality by under-firing the regularizer).
+Byte-for-byte identical behavior for the dense-only baseline (`use_dense`
+is always true there, so the reset still fires the same iteration as
+before).
+
+**Verified two ways**: a standalone CPU-only script,
+`port/tests/test_opacity_reset_nonvisible.py`, reproduces the bug against
+the real (unmodified) `reset_opacity_nonvisible` and proves the new
+deferred-reset decision logic is correct in isolation. Then confirmed
+directly in a real GPU run via temporary `SPLATONIC_DEBUG_OPACITY_RESET=1`
+logging: the reset genuinely fires on a sparse iteration, correctly defers,
+and applies 2 iterations later once a dense pass provides a valid filter —
+in both the dense and sparse configs, across every run this session.
+
+**Three more bugs found and fixed while getting a real validation run to
+complete** (all were silently swallowing every run's final numbers or
+leaving the GPU in a bad state before this):
+- `eval_ate` crashed at the end of every single run:
+  `evo==1.11.0` (the version actually pinned in `Makefile`'s
+  `deps-monogs`) has no `PosePath3D.align()` instance method — that's a
+  newer-evo-only API a previous session's fix assumed was installed.
+  Fixed to use 1.11.0's real API, the free function
+  `trajectory.align_trajectory()` (`eval_utils.py`).
+- A degenerate/too-few-points trajectory shortly after a monocular
+  re-initialization crashed `eval_ate` outright
+  (`evo.core.geometry.GeometryException: Degenerate covariance rank`)
+  instead of skipping that one checkpoint. Now caught, logged, and
+  returns NaN for that checkpoint only.
+- `evo`'s own `traj_colormap` plot crashes against this matplotlib version
+  (`fig.colorbar(...)` needs an explicit `ax=` here). Now caught so the
+  real ATE number is still returned even when the plot can't be drawn.
+- `slam.py` left the backend running forever as an orphaned, GPU-active
+  `mp.Process` whenever `frontend.run()` raised — its `while True:` loop
+  only exits on a queue message sent from the *normal* completion path,
+  never reached on a crash. Directly observed hanging at 0% GPU
+  utilization after a crash before this fix. Now terminated specifically
+  on the exception path (re-raised after cleanup), with the normal path
+  (which still needs the backend alive for `color_refinement`) untouched.
+
+**Numbers, 350-frame TUM fr1_desk, opacity fix only**:
+
+| Config | RMSE ATE (m) | PSNR after refine (dB) |
+|---|---|---|
+| Dense | 0.0277–0.0287 | 21.13–21.15 |
+| Sparse, before this fix | ~0.726 (§9's own number, full 613 frames) | 14.35 |
+| Sparse, with opacity fix only | 0.278 | 14.43 |
+
+**The opacity fix alone does not close the gap** — numbers are nearly
+identical to §9's pre-fix figures. This is clean negative evidence
+confirming §9's own conclusion: the *dominant* driver is the separately-
+diagnosed rotation-drift mechanism, not this bug. Real and worth fixing
+regardless (a full-map opacity wipe is bad regardless of whether it's the
+dominant driver), just not the answer to §9.
+
+### 10.2 SPLATONIC-parity re-verification (tag `splatonic-parity-fix`, commits `aebefa9`, `456c05b`)
+
+A fresh, read-only re-verification pass, diffing the current code directly
+against `SPLATONIC/scripts/splatam_sparse.py` and
+`SPLATONIC/{track,map}-rasterization/` (not trusting this document's own
+prior claims), to check two things: is the port still faithful today, and
+is it faithful *enough* to attribute a remaining quality gap to SPLATONIC
+itself rather than to the port.
+
+**CUDA kernels: re-verified faithful, no new discrepancies.** Gap 4
+(alpha-pruning cull condition) and Gap 14 (backward's background-color
+sign) were confirmed live in the current code, not just claimed fixed in
+this document. Transmittance/compositing math, key-packing, and dispatch
+parameters all match SPLATONIC's actual source or an already-documented,
+justified deviation (e.g. `MAX_NUM_RENDERED` downsized for this session's
+4GB dev GPU).
+
+**Python-side sampling/loss: three confirmed, previously-uncaught
+discrepancies, fixed:**
+
+1. **Tracking's sparse loss silently decimated its own pixel budget a
+   second time.** `get_loss_tracking_sparse` intersected the already-sparse
+   `pixel_mask` with `viewpoint.grad_mask` (an edge-magnitude filter
+   keeping ~50% of any mask) — SPLATONIC's own reference tracking
+   (`splatam_sparse.py:879-880`) applies no such post-hoc filter. Effective
+   MonoGS tracking budget was ~500-600 pixels, not the nominal ~1200. This
+   is the most direct, previously-uncaught amplifier of the high-variance
+   rotation gradient §9 already diagnosed — and it explains *why* the
+   adaptive-sampling experiment (§10.3) helped: gradient-weighted samples
+   survive this same filter far better than uniform ones did. **Fixed**:
+   removed for the monocular path; added the RGB-boundary masking that was
+   already present in dense tracking but missing here.
+2. **Mapping's sparse sample density was 4x sparser than documented.**
+   `num_sparse = max(64, (H*W)//64)` vs SPLATONIC's own
+   `(H//4)*(W//4)` (`splatam_sparse.py:1062`) — with
+   `mapping_tile_size=4`, this meant MonoGS averaged 0.25 samples per 4x4
+   tile vs SPLATONIC's ~1.0/tile, i.e. most tiles got literally zero
+   supervision, not just "fewer" samples. **Fixed**: density restored to
+   match.
+3. **The newest keyframe had only a 1-in-4 chance of dense supervision,
+   like every other window frame.** SPLATONIC's own mapping loop hardcodes
+   the *current* frame's counter to 0, guaranteeing it's always densely
+   supervised (`splatam_sparse.py:1043,1050-1051`) — the newest keyframe
+   has the least-modeled geometry and needs it most. MonoGS's FLIP is a
+   single global counter with no such carve-out. **Fixed**: `map()` now
+   forces `current_window[0]` (the newest keyframe) dense unconditionally.
+
+**Deliberately NOT ported**: SPLATONIC's full per-pixel "novelty/unseen"
+mask (a per-keyframe mask, captured from a silhouette-style render at
+insertion time, unioned into that keyframe's sparse sample on every later
+sparse revisit — `splatam_sparse.py:556-599,1042-1066`). Porting it
+faithfully needs render infrastructure MonoGS doesn't have (no silhouette
+pass exists) and a restructured mapping-iteration scheme (SPLATONIC
+randomly selects *one* keyframe per iteration with its own independent
+per-keyframe counter; MonoGS processes the *whole window* every
+iteration). Rushing a partial version risked a subtly wrong
+implementation — recorded here as the largest remaining gap, not
+attempted.
+
+**A fourth fix was attempted and reverted — a real regression, worth
+recording as a general caution.** SPLATONIC's own dense mapping loss is an
+80/20 L1/SSIM blend; MonoGS's sparse mapping loss already had this (via
+`calc_ssim_shuffled_packed`) but dense mapping never did, so the mapping
+objective silently changed shape depending on which FLIP branch fired.
+Adding the same SSIM term to MonoGS's dense `get_loss_mapping_rgb` (to
+match SPLATONIC's own self-consistent design) was tried — and directly
+caused dense's own rotation error, bounded under ~4° in every run all
+session, to climb to 27-30°, with final ATE/PSNR degrading from a
+consistent ~0.03m/~21dB to 0.177m/15.76dB. **Root cause**: `ssim()` was
+computed on the full, *unmasked* image pair, unlike the L1 term which
+zeroes out pixels below the RGB boundary threshold; where the render's
+background differs from TUM's zeroed-out boundary convention, SSIM's
+windowed comparison sees a real structural mismatch there and — because
+convolutional windows leak — injects a corrupting gradient across a much
+wider region than just the boundary itself. **Reverted**; dense mapping
+stays pure L1, the SSIM inconsistency is left as originally found. General
+lesson recorded for future work: MonoGS's masking/background conventions
+differ from SplaTAM's in ways that can make a change that's "obviously
+correct by SPLATONIC's own reference" actively harmful here — assume this
+risk by default for any further loss-function porting, and validate on a
+real run before trusting the diff, exactly as happened here by accident.
+
+**Numbers, 350-frame TUM fr1_desk, opacity fix + all 3 parity fixes
+(SSIM addition reverted)**:
+
+| Config | RMSE ATE (m) | PSNR after refine (dB) | SSIM (after) |
+|---|---|---|---|
+| Dense | 0.038 | 20.35 | 0.699 |
+| Sparse, opacity fix only (10.1's baseline) | 0.278 | 14.43 | 0.516 |
+| Sparse, opacity fix + parity fixes | **0.213** | **15.37** | **0.534** |
+
+A genuine improvement (~23% ATE reduction, +0.94dB PSNR) — the first
+change across §9's 11+ tested hypotheses plus 10.1's opacity fix to
+actually move the core numbers rather than rule something out. Rotation
+error still shows the same "rises, peaks, partially recovers" shape as
+§9 documented (this run: peaks ~55° around frame 240, down to ~24° by
+frame 331) — the mechanism is not eliminated, just measurably reduced.
+
+### 10.3 Adaptive (gradient-weighted) tracking sampling — separately tested, real improvement, not yet combined with 10.2's fixes
+
+Implemented `SPLATONIC_DEBUG_TRACK_ADAPTIVE=1` in `slam_frontend.py`'s
+`tracking()`: reuses `adaptive_random_sampling`/`get_pixel_info`
+(`mask_utils.py`) — already used by mapping's own sparse path — to
+gradient-weight tracking's pixel selection instead of `generate_random_mask`'s
+uniform sampling. This directly targets §9's diagnosed root cause (a
+high-variance Monte-Carlo gradient estimate from a small random sample)
+with a different lever than §9's own already-falsified attempt (more
+*uniform* samples, `SPLATONIC_DEBUG_TRACK_K`, didn't help) — concentrating
+the same pixel budget on informative (edge/texture) regions instead.
+
+**Tested before 10.2's parity fixes landed** (i.e. still with the
+grad_mask double-decimation bug from 10.2 point 1 active):
+
+| Config | RMSE ATE (m) | PSNR after refine (dB) | SSIM (after) |
+|---|---|---|---|
+| Sparse, uniform sampling | 0.278 | 14.43 | 0.516 |
+| Sparse, adaptive sampling | 0.173 | 15.41 | 0.548 |
+
+A real improvement, similar magnitude to 10.2's parity fixes. **Caveat,
+important**: this codebase has **no fixed random seed anywhere** (checked
+directly — zero hits for `manual_seed`/`np.random.seed`/`random.seed` in
+`slam.py`, the utils, or the configs). Every single-run comparison in this
+whole section, this one included, carries irreducible run-to-run noise on
+top of whatever the tested change actually does — none of these deltas
+have been repeated to check robustness. Treat 10.2 and 10.3's numbers as
+suggestive, not conclusive, until repeated.
+
+**Not yet done**: testing adaptive sampling *combined with* 10.2's parity
+fixes. Adaptive sampling's benefit was partly theorized to come from
+surviving the grad_mask filter better than uniform sampling — but 10.2
+removed that filter entirely. Whether adaptive sampling still helps on top
+of (or is now redundant with) the parity fixes is untested.
+
+### 10.4 Is this correctly called "SPLATONIC"? Assessment and remaining issues
+
+SPLATONIC is really two things bundled under one name: (a) a sparse-pixel
+CUDA rasterizer, and (b) a set of Python-side training-methodology choices
+co-designed around it on SplaTAM. **(a) has earned the name** — faithfully
+ported and now independently re-verified twice (§5's original gap-fixing
+pass, and 10.2's fresh re-diff), zero new discrepancies found. **(b) has
+not, yet**: the novelty/unseen mask is entirely missing, the FLIP schedule
+is only partially per-keyframe (current-frame-always-dense fixed, other
+keyframes still share one global counter instead of SPLATONIC's
+independent per-keyframe ones), and — a distinct, non-SPLATONIC-specific
+point — **SplaTAM's own dense tracking has robustness features MonoGS's
+tracking has no equivalent of at all**: a constant-velocity pose
+initializer *on by default*, retaining the best-loss iterate rather than
+whatever Adam's last step happens to land on, and adaptively extending
+iteration count on poor convergence. None of that is SPLATONIC's
+contribution, but it means SPLATONIC's sparse sampling never had to prove
+itself against a baseline this exposed to noisy per-frame gradients.
+Separately: **no reference number exists anywhere** (not in
+`SPLATONIC/README.md`, not in `SplaTAM/`, nowhere in this repo) for
+SPLATONIC's own sparse-vs-dense gap on its native SplaTAM base — there is
+currently nothing concrete to call "on par" against.
+
+**Recommendation**: call this "MonoGS + SPLATONIC's sparse rasterizer,"
+not "SPLATONIC on MonoGS," until the methodology gaps above are closed or
+deliberately scoped out. Do not report the current PSNR/ATE gap upstream
+as a finding about SPLATONIC — it may be measuring MonoGS's own tracking
+fragility as much as anything about SPLATONIC's sparse sampling idea.
+
+**Open issues, ranked by likely value of investigating next:**
+
+1. Per-keyframe FLIP independence still not implemented (only the
+   current-keyframe carve-out landed) — bounded, well-understood scope,
+   unlike the novelty mask.
+2. Get one actual SplaTAM-native SPLATONIC sparse-vs-dense number to have
+   something real to compare against — currently doesn't exist anywhere.
+3. Novelty/unseen-pixel mask — the largest remaining gap, needs new render
+   infrastructure and a mapping-loop restructure; deliberately deferred,
+   not attempted.
+4. Whether MonoGS's tracking loop lacking SplaTAM's robustness features
+   (motion model, best-loss retention, adaptive iterations) is itself a
+   material contributor — not investigated.
+5. Test adaptive sampling (10.3) combined with the parity fixes (10.2) —
+   untested interaction.
+6. Repeat 10.2/10.3's single-run comparisons — no fixed seed exists, so
+   neither has been checked for robustness to run-to-run noise.
+7. The motion-prior fix (§9, constant-angular-velocity, staleness bug
+   already corrected — see `slam_frontend.py`'s `tracking_motion_prior_alpha`
+   re-render fix) has never been validated on a real run.
+8. Everything in §10 is 350 frames on a slow 4GB dev GPU, not the full
+   ~613-frame sequence, and not the A100 this port is ultimately targeting.
+9. Exposure compensation (`exposure_a`/`exposure_b`, 2 extra learnable DOF
+   in MonoGS's tracking with no SplaTAM equivalent) flagged as a plausible
+   noise-absorption channel interacting with sparse sampling — never
+   directly investigated.
