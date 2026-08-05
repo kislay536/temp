@@ -180,7 +180,16 @@ class BackEnd(mp.Process):
             for cam_idx in range(len(current_window)):
                 viewpoint = viewpoint_stack[cam_idx]
                 keyframes_opt.append(viewpoint)
-                if use_dense:
+                # current_window[0] is the newest keyframe (add_to_window in
+                # slam_frontend.py prepends: window = [cur_frame_idx] + window).
+                # SPLATONIC's own reference mapping loop guarantees the current
+                # frame is always densely supervised (splatam_sparse.py: the
+                # current-frame branch hardcodes counter=0, forcing its dense
+                # loss) -- the newest keyframe has the least-modeled geometry
+                # (often just densified this step) and needs full supervision
+                # rather than a 3-in-4 chance of a sparse pass like every other
+                # window frame.
+                if use_dense or cam_idx == 0:
                     render_pkg = render(
                         viewpoint, self.gaussians, self.pipeline_params, self.background
                     )
@@ -211,7 +220,13 @@ class BackEnd(mp.Process):
                 else:
                     gt_image = viewpoint.original_image.cuda()
                     H, W = gt_image.shape[1], gt_image.shape[2]
-                    num_sparse = max(64, (H * W) // 64)
+                    # Matches SPLATONIC's own reference sparse mapping density
+                    # (SPLATONIC/scripts/splatam_sparse.py: (H//4)*(W//4)) --
+                    # the previous (H*W)//64 budget was 4x sparser, and with
+                    # mapping_tile_size=4 (16 pixels/tile) averaged only 0.25
+                    # samples per tile, leaving most tiles with zero
+                    # supervision on a sparse mapping iteration.
+                    num_sparse = max(64, (H // 4) * (W // 4))
                     pixel_mask = adaptive_random_sampling(gt_image, num_sparse)
                     pixel_range, pixel_coords = get_pixel_info(
                         pixel_mask, tile_size=tile_size
@@ -266,7 +281,13 @@ class BackEnd(mp.Process):
                 else:
                     gt_image = viewpoint.original_image.cuda()
                     H, W = gt_image.shape[1], gt_image.shape[2]
-                    num_sparse = max(64, (H * W) // 64)
+                    # Matches SPLATONIC's own reference sparse mapping density
+                    # (SPLATONIC/scripts/splatam_sparse.py: (H//4)*(W//4)) --
+                    # the previous (H*W)//64 budget was 4x sparser, and with
+                    # mapping_tile_size=4 (16 pixels/tile) averaged only 0.25
+                    # samples per tile, leaving most tiles with zero
+                    # supervision on a sparse mapping iteration.
+                    num_sparse = max(64, (H // 4) * (W // 4))
                     pixel_mask = adaptive_random_sampling(gt_image, num_sparse)
                     pixel_range, pixel_coords = get_pixel_info(
                         pixel_mask, tile_size=tile_size

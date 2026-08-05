@@ -1,5 +1,7 @@
 import torch
 
+from gaussian_splatting.utils.loss_utils import ssim
+
 
 def image_gradient(image):
     # Compute image gradient using Scharr Filter
@@ -107,7 +109,18 @@ def get_loss_mapping_rgb(config, image, depth, viewpoint):
     rgb_pixel_mask = (gt_image.sum(dim=0) > rgb_boundary_threshold).view(*mask_shape)
     l1_rgb = torch.abs(image * rgb_pixel_mask - gt_image * rgb_pixel_mask)
 
-    return l1_rgb.mean()
+    # SPLATONIC's own dense mapping RGB loss is an 80/20 L1/SSIM blend
+    # (SPLATONIC/scripts/splatam_sparse.py: 0.8*l1 + 0.2*(1-ssim)); MonoGS's
+    # sparse mapping loss (get_loss_mapping_sparse below) already includes
+    # this SSIM term via calc_ssim_shuffled_packed, but dense mapping never
+    # did -- meaning the mapping objective silently changed shape depending
+    # on which FLIP branch fired that iteration. SSIM is computed on the
+    # full, unmasked image (matching SPLATONIC): its windowed comparison
+    # needs a real 2D neighborhood, which a boundary-masked image would
+    # distort at the mask edges.
+    lambda_dssim = config["opt_params"].get("lambda_dssim", 0.2)
+    ssim_val = ssim(image, gt_image)
+    return (1.0 - lambda_dssim) * l1_rgb.mean() + lambda_dssim * (1.0 - ssim_val)
 
 
 def get_loss_mapping_rgbd(config, image, depth, viewpoint, initialization=False):
@@ -133,24 +146,34 @@ def get_loss_tracking_sparse(config, image, depth, opacity, viewpoint, pixel_mas
 
     Falls back to the dense get_loss_tracking when pixel_mask is None.
     pixel_mask: (H, W) bool tensor on CUDA. When provided, only the selected
-    pixels contribute to the loss. combined_mask additionally gates on
-    viewpoint.grad_mask so noisy/uninformative pixels are suppressed.
+    pixels contribute to the loss.
+
+    The monocular path uses pixel_mask directly as the supervision set (no
+    further intersection with viewpoint.grad_mask) and gates on the RGB
+    boundary threshold, matching SPLATONIC's own reference sparse tracking
+    (SPLATONIC/scripts/splatam_sparse.py) and MonoGS's own dense
+    get_loss_tracking_rgb. Previously this additionally intersected with
+    grad_mask (an edge-magnitude filter that keeps roughly half of any given
+    mask), silently halving the already-sparse ~1200-pixel tracking budget
+    with no equivalent in the reference implementation.
     """
     if pixel_mask is None:
         return get_loss_tracking(config, image, depth, opacity, viewpoint)
 
     image_ab = torch.exp(viewpoint.exposure_a) * image + viewpoint.exposure_b
     gt_image = viewpoint.original_image.cuda()
-    combined_mask = pixel_mask & viewpoint.grad_mask[0].bool()
 
     if config["Training"]["monocular"]:
+        rgb_mask = gt_image.sum(dim=0) > config["Training"]["rgb_boundary_threshold"]
+        valid = pixel_mask & rgb_mask
         loss = (
-            opacity[:, combined_mask]
-            * torch.abs(image_ab[:, combined_mask] - gt_image[:, combined_mask])
+            opacity[:, valid]
+            * torch.abs(image_ab[:, valid] - gt_image[:, valid])
         ).mean()
         return loss
 
     alpha = config["Training"].get("alpha", 0.95)
+    combined_mask = pixel_mask & viewpoint.grad_mask[0].bool()
     rgb_mask = gt_image.sum(dim=0) > config["Training"]["rgb_boundary_threshold"]
     valid = combined_mask & rgb_mask
     l1_rgb = (
